@@ -276,6 +276,19 @@ async function deleteHistoryKeys(keys){
  const next=history.filter((h,i)=>!set.has(historyKey(h,i)));
  await put('history',next);selectedHistory.clear();await renderHistory();showSavedCheck();
 }
+function startSendProgress(mode){
+ const overlay=$('sendProgressOverlay');
+ $('sendProgressTitle').textContent=mode==='send'?'메일 전송 중':'Gmail 초안 생성 중';
+ $('sendProgressFill').style.width='0%';
+ $('sendProgressTrack').setAttribute('aria-valuenow','0');
+ overlay.hidden=false;
+}
+function updateSendProgress(completed,total){
+ const percent=total?Math.min(100,Math.round(completed/total*100)):0;
+ $('sendProgressFill').style.width=percent+'%';
+ $('sendProgressTrack').setAttribute('aria-valuenow',String(percent));
+}
+function stopSendProgress(){$('sendProgressOverlay').hidden=true}
 async function prepare(){
  if(busy)return;
  $('submit').disabled=true;
@@ -300,6 +313,7 @@ async function prepare(){
     busy=true;
     let done=0;
     const failures=[];
+    startSendProgress(mode);
     try{
       for(const email of recipients){
         setStatus((mode==='send'?'개별 발송':'초안 생성')+' 중: '+(done+failures.length+1)+' / '+recipients.length);
@@ -308,6 +322,7 @@ async function prepare(){
           const result=mode==='send'?await gmailCall('messages/send',{raw}):await gmailCall('drafts',{message:{raw}});
           await record(mode,{...saved,to:email},result);
           done++;
+          updateSendProgress(done,recipients.length);
         }catch(e){
           failures.push(email+' — '+(e.message||String(e)));
           await recordFailure(mode,{...saved,to:email},e.message||String(e));
@@ -317,9 +332,9 @@ async function prepare(){
       const verb=mode==='send'?'전송':'초안 생성';
       const statusText=verb+' 성공 '+done+'명 / 요청 '+recipients.length+'명'+(failures.length?' · 실패 '+failures.length+'명: '+failures.join('; '):'')+(mode==='draft'&&done?' · Gmail 임시보관함에서 직접 발송하세요.':'');
       setStatus((done?'✓ ':'⚠ ')+statusText,!!failures.length);
-      if(mode==='send'&&done===recipients.length&&failures.length===0)showSavedCheck();
+      if(mode==='send'&&done===recipients.length&&failures.length===0){stopSendProgress();showSavedCheck();}
       if(mode==='draft'&&done){const link=document.createElement('a');link.href='https://mail.google.com/mail/u/0/#drafts';link.target='_blank';link.rel='noopener';link.textContent='Gmail 임시보관함 열기';$('status').append(' ',link)}
-    }finally{busy=false;$('submit').disabled=false}
+    }catch(e){setStatus('전송 처리 오류: '+(e.message||String(e)),true)}finally{stopSendProgress();busy=false;$('submit').disabled=false}
   };
   // Validate all attachments once before showing the final send button.
   if((saved.files||[]).length){
