@@ -61,6 +61,11 @@
 - 첨부파일 선택도 attachmentAccordion(details)으로 접혀 있고 제목에서 첨부 건수 표시.
 - HTML, SW JS/CSS 버전 v0.3.3으로 동기화. IndexedDB 및 Gmail 엔진 불변.
 
+## v0.3.4 (2026-11-19)
+- 상단 화면 제목과 페이지 타이틀 Multi Mail Sender로 변경. 홈 화면 설치 이름 JOON Mail 및 기존 노란 봉투 PNG 아이콘은 유지.
+- 새 메일 작성 버튼만 파란색 강조. 클릭 처리 함수는 변경하지 않아 확인창과 중앙 V 체크 유지.
+- 앱 데이터, IndexedDB, 발송 로직 변경 없음. 캐시 v0.3.4.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
