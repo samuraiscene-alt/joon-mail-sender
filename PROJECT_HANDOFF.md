@@ -50,6 +50,11 @@
 - js/css?v=0.3.0, service worker cache=joon-mail-v0.3.0. 기존 IndexedDB 이름/구조 및 OAuth 설정 불변.
 - 실기기에서는 iPhone Safari/홈화면/직접 링크, 기존 첨부파일 보존, 주소록 선택, 전송·초안·기록 삭제를 검사해야 함.
 
+## v0.3.1 UI 캐시 호환 패치
+- iPhone에서 v0.3.0 HTML이 적용됐지만 CSS 중 자동 저장 배지 및 가로 발송 선택 UI가 나타나지 않는 화면 보고.
+- index.html에 핵심 UI 스타일을 인라인 추가하고 app.js/style.css 쿼리를 v0.3.1로 변경. SW CACHE 갱신.
+- 기존 아이콘, IndexedDB, 이메일 발송 로직은 변경하지 않음. 실기기에서 최신 CSS 반영 확인 필요.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
