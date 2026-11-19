@@ -119,3 +119,10 @@ button.categoryRemove{color:#b92837;background:#fff0f0}
 /* v0.4.2: accent address book save action once name has input */
 #addressBookPanel:has(#contactName:not(:placeholder-shown)) #addContact{background:#2878f0;color:#fff;box-shadow:0 4px 12px rgba(40,120,240,.20)}
 #addressBookPanel:has(#contactName:not(:placeholder-shown)) #addContact:active{background:#1765d6}
+
+/* v0.4.3: one visibly selected accordion tab at a time */
+details.accordion > summary.tabActive{background:#e6efff!important;color:#145cc7;box-shadow:inset 0 0 0 1.5px #92baff;border-radius:15px}
+details.accordion > summary.tabActive .summaryCounter{color:#145cc7}
+details.accordion > summary.tabActive::after{color:#145cc7}
+.categoryGroup > summary .categoryGroupTitle{font-size:18px;font-weight:850;letter-spacing:-.35px}
+.categoryGroup > summary{min-height:59px}
