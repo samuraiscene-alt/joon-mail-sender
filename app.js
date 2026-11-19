@@ -201,6 +201,7 @@ async function prepare(){
       const verb=mode==='send'?'전송':'초안 생성';
       const statusText=verb+' 성공 '+done+'명 / 요청 '+recipients.length+'명'+(failures.length?' · 실패 '+failures.length+'명: '+failures.join('; '):'')+(mode==='draft'&&done?' · Gmail 임시보관함에서 직접 발송하세요.':'');
       setStatus((done?'✓ ':'⚠ ')+statusText,!!failures.length);
+      if(mode==='send'&&done===recipients.length&&failures.length===0)showSavedCheck();
       if(mode==='draft'&&done){const link=document.createElement('a');link.href='https://mail.google.com/mail/u/0/#drafts';link.target='_blank';link.rel='noopener';link.textContent='Gmail 임시보관함 열기';$('status').append(' ',link)}
     }finally{busy=false;$('submit').disabled=false}
   };
