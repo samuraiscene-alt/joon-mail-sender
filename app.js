@@ -10,6 +10,7 @@ function db(){if(!dbPromise)dbPromise=new Promise((resolve,reject)=>{const req=i
 async function get(key){const d=await db();return new Promise((res,rej)=>{let r=d.transaction('data').objectStore('data').get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
 async function put(key,value){const d=await db();return new Promise((res,rej)=>{let t=d.transaction('data','readwrite');t.objectStore('data').put(value,key);t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
 const setStatus=(s,bad=false)=>{$('status').textContent=s;$('status').style.color=bad?'#b42318':'#157347'};
+function showTemporaryStatus(message,ms=2000){setStatus(message);setTimeout(()=>{if($('status').textContent===message)$('status').textContent=''},ms)}
 function showSavedCheck(){let el=document.getElementById('savedCheckOverlay');if(!el){el=document.createElement('div');el.id='savedCheckOverlay';el.setAttribute('aria-label','저장 완료');el.style.cssText='position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,.08)';const circle=document.createElement('div');circle.textContent='✓';circle.style.cssText='width:92px;height:92px;border-radius:50%;background:#148552;color:white;font-size:58px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px #0003';el.append(circle);document.body.append(el)}el.style.display='flex';clearTimeout(showSavedCheck.timer);showSavedCheck.timer=setTimeout(()=>{el.style.display='none'},1800)}
 function queueSave(task){const next=saving.catch(()=>{}).then(task);saving=next;return next}
 function composerData(){return {to:$('to').value.trim(),subject:$('subject').value,body:$('body').value}}
@@ -135,7 +136,7 @@ async function confirmContactCategories(){
   const wasEdit=!!editingContactId;editingContactId=null;
   $('contactCategoryDialog').close();
   $('contactName').value='';$('contactEmail').value='';$('addContact').textContent='주소록에 추가';$('cancelContactEdit').hidden=true;
-  renderContacts();showSavedCheck();setStatus(wasEdit?'✓ 주소록 수정 완료':'✓ 주소록에 저장했습니다.');
+  renderContacts();showSavedCheck();showTemporaryStatus(wasEdit?'✓ 주소록 수정 완료':'✓ 주소록에 저장했습니다.');
  }finally{button.disabled=false}
 }
 function editContact(id){
