@@ -115,3 +115,7 @@ button.categoryRemove{color:#b92837;background:#fff0f0}
 .categoryDialog .categoryOption{margin:0;display:flex!important;align-items:center;gap:12px;padding:13px 8px;font-size:15px}
 .categoryDialog .categoryOption input{width:22px;height:22px;accent-color:#e4aa1c}
 .categoryDialog .actions{justify-content:flex-end}
+
+/* v0.4.2: accent address book save action once name has input */
+#addressBookPanel:has(#contactName:not(:placeholder-shown)) #addContact{background:#2878f0;color:#fff;box-shadow:0 4px 12px rgba(40,120,240,.20)}
+#addressBookPanel:has(#contactName:not(:placeholder-shown)) #addContact:active{background:#1765d6}
