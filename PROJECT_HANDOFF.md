@@ -23,6 +23,14 @@
 - Gmail OAuth 앱은 테스트 상태. 지인에게 배포하려면 공개 앱 검증/보안 요구사항 별도 확인 필요.
 - 기존 저장소: IndexedDB('joon-mail-v1') data store에 message/history/contacts. 기존 데이터 유지. 클라이언트 ID는 localStorage 사용. 비밀번호/토큰은 GitHub에 커밋하지 않음.
 
+## v0.2.1 첨부 오류 및 수정 (2026-11-19)
+- 아이폰 주소록 2명 선택 후 Gmail 초안 생성 시 두 건 모두 `The object can not be found here.` 오류 발생.
+- Gmail API 응답보다는 IndexedDB에 저장한 File 객체의 참조가 만료된 문제로 추정되며 단정할 수 없음.
+- app.js에서 새로운 첨부파일은 원본 파일 바이트를 base64 문자열로 변환해 IndexedDB message.files에 저장. 기존 File 객체는 자동 복구하지 않음.
+- 초안 생성/발송 전 첨부 데이터 검사. 문제가 있으면 사용자에게 파일 재선택 요구하고 발송 차단.
+- JSON 백업/복원은 base64 포맷을 사용하고 과거 버전 백업 파일 읽기 지원.
+- cache v0.2.1 / UI v0.2.1. 아이폰 재테스트 대기 (주소록 2개 선택, 파일 다시 선택, Gmail 초안 생성, 첨부 확인).
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
