@@ -80,6 +80,12 @@
 - 전체 JSON 백업/복원에 categories 추가, 기존 백업에서 categories 누락 시 기본값 적용.
 - GitHub 코드 반영 v0.4.0. Safari/홈화면/직접 링크 기능 검증은 아직 필요. 기존 192/512 노란 봉투 아이콘 유지.
 
+## v0.4.1 카테고리 UI 단순화
+- 주소록 다중 선택 아코디언 내부에 categoryBookAccordion 및 categoryManagerAccordion를 기본 닫힌 상태로 분리.
+- 연락처 이름/이메일을 입력한 뒤 주소록에 추가를 누르면 contactCategoryDialog.showModal()이 열리고 카테고리 선택 후 저장. 기존 연락처 수정도 동일 팝업 흐름.
+- 취소 시 입력값 유지, 저장하지 않음. 카테고리 복수 선택/미분류 저장, 모든 기존 데이터 보존.
+- v0.4.1 PWA/쿼리 캐시 동기화. iPhone Safari/홈앱 검증 필요.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
