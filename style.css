@@ -126,3 +126,27 @@ details.accordion > summary.tabActive .summaryCounter{color:#145cc7}
 details.accordion > summary.tabActive::after{color:#145cc7}
 .categoryGroup > summary .categoryGroupTitle{font-size:18px;font-weight:850;letter-spacing:-.35px}
 .categoryGroup > summary{min-height:59px}
+
+/* v0.5.0: flat 2D hourglass + flying letter and Gmail-result progress */
+.sendProgressOverlay[hidden]{display:none!important}
+.sendProgressOverlay{position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:rgba(24,31,48,.55);padding:24px;overscroll-behavior:contain}
+.sendProgressCard{width:min(100%,365px);background:#fff;border-radius:26px;padding:26px 22px 25px;text-align:center;box-shadow:0 24px 62px #101b3050}
+.sendProgressArt{width:235px;height:165px;margin:0 auto 11px;position:relative}
+.sendHourglass{position:absolute;left:47px;top:8px;width:95px;height:139px;overflow:visible}
+.glassTurn{transform-box:fill-box;transform-origin:center;animation:hourglassCycle 3.2s ease-in-out infinite}
+.sandTop{transform-box:fill-box;transform-origin:center bottom;animation:sandDraining 3.2s linear infinite}
+.sandBottom{transform-box:fill-box;transform-origin:center bottom;animation:sandFilling 3.2s linear infinite}
+.sandStream{animation:sandStreamBlink 3.2s linear infinite}
+.sendFlyingMail{position:absolute;left:112px;top:61px;width:92px;height:72px;filter:drop-shadow(0 3px 2px #a7c3e455);animation:letterFly 3.2s ease-in-out infinite}
+.sendProgressCard>strong{display:block;font-size:19px;letter-spacing:-.4px;color:#232830}
+.sendProgressHint{font-size:12px;color:#828996;line-height:1.5;margin:9px 0 22px}
+.sendProgressTrack{width:100%;height:13px;border-radius:999px;background:#e7ebf2;overflow:hidden}
+.sendProgressFill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#f3c63f,#ecaa13);transition:width .48s ease}
+.sendProgressNotice{font-size:12px;color:#828996;margin:12px 0 0}
+@keyframes sandDraining{0%{transform:scaleY(1);opacity:1}61%{transform:scaleY(.02);opacity:.5}65%,100%{transform:scaleY(1);opacity:1}}
+@keyframes sandFilling{0%{transform:scaleY(.03)}61%{transform:scaleY(1)}65%,100%{transform:scaleY(.03)}}
+@keyframes sandStreamBlink{0%,61%{opacity:1}65%,100%{opacity:0}}
+@keyframes hourglassCycle{0%,64%{transform:rotate(0)}85%,100%{transform:rotate(180deg)}}
+@keyframes letterFly{0%,62%{transform:translate(0,0) rotate(0) scale(1);opacity:1}67%{transform:translate(5px,-4px) rotate(-5deg) scale(1.04);opacity:1}90%{transform:translate(80px,-48px) rotate(-14deg) scale(.7);opacity:1}100%{transform:translate(105px,-66px) rotate(-18deg) scale(.55);opacity:0}}
+@media(max-width:370px){.sendProgressCard{padding:20px 15px}.sendProgressArt{width:215px}}
+@media(prefers-reduced-motion:reduce){.glassTurn,.sandTop,.sandBottom,.sandStream,.sendFlyingMail{animation:none}.sendProgressFill{transition:none}}
