@@ -5,7 +5,7 @@ let accessToken='',tokenClient=null,dbPromise;
 let contacts=[], selectedContacts=new Set(), saving=Promise.resolve(),busy=false;
 let historySelection=false,selectedHistory=new Set();
 const DEFAULT_CATEGORIES=['회사','친구','쇼핑','거래처'];
-let categories=[...DEFAULT_CATEGORIES],openCategories=new Set(['회사']),editingContactId=null;
+let categories=[...DEFAULT_CATEGORIES],openCategories=new Set(),editingContactId=null;
 function db(){if(!dbPromise)dbPromise=new Promise((resolve,reject)=>{const req=indexedDB.open('joon-mail-v1',1);req.onupgradeneeded=()=>{let d=req.result;if(!d.objectStoreNames.contains('data'))d.createObjectStore('data')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});return dbPromise}
 async function get(key){const d=await db();return new Promise((res,rej)=>{let r=d.transaction('data').objectStore('data').get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
 async function put(key,value){const d=await db();return new Promise((res,rej)=>{let t=d.transaction('data','readwrite');t.objectStore('data').put(value,key);t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
@@ -28,6 +28,7 @@ function validEmail(v){return /^[^\s@,<>\r\n]+@[^\s@,<>\r\n]+\.[^\s@,<>\r\n]+$/.
 function showContactCount(){
  $('contactCount').textContent='저장 '+contacts.length+'명 · 선택 '+selectedContacts.size+'명 (주소록 선택 시 직접 입력 주소 대신 사용)';
  $('contactSummary').textContent=selectedContacts.size+'명 선택';
+ $('categoryBookCount').textContent=contacts.length+'명 저장';
 }
 function categoryNamesFor(contact){
  const names=Array.isArray(contact.categories)?contact.categories:(contact.category?[contact.category]:[]);
@@ -37,10 +38,7 @@ function categoryNamesFor(contact){
 function chosenCategoryNames(){
  return [...$('contactCategoryOptions').querySelectorAll('input[type=checkbox]:checked')].map(x=>x.value);
 }
-function updateCategoryPickerText(){
- const chosen=chosenCategoryNames();
- $('pickedCategories').textContent=chosen.length?chosen.join(' · '):'미분류';
-}
+function updateCategoryPickerText(){}
 function renderCategoryPicker(selected=[]){
  const list=$('contactCategoryOptions');list.replaceChildren();
  for(const category of categories){
@@ -115,33 +113,43 @@ async function loadContacts(){
  contacts=saved.filter(c=>c&&typeof c.email==='string'&&validEmail(c.email)&&typeof c.id==='string').map(c=>({...c,categories:Array.isArray(c.categories)?c.categories:(c.category?[c.category]:[])}));
  selectedContacts=new Set();editingContactId=null;
  $('addContact').textContent='주소록에 추가';$('cancelContactEdit').hidden=true;
+ openCategories=new Set();$('categoryBookAccordion').open=false;$('categoryManagerAccordion').open=false;
  renderCategoryPicker();renderCategoryManager();renderContacts();
 }
-async function addContact(){
- const name=$('contactName').value.trim(),email=cleanEmail($('contactEmail').value),assigned=chosenCategoryNames();
+function addContact(){
+ const email=cleanEmail($('contactEmail').value);
  if(!validEmail(email)){$('contactError').hidden=false;$('contactError').textContent='이메일 주소를 입력하거나 형식을 확인하세요.';return}
  if(contacts.some(c=>c.email===email&&c.id!==editingContactId)){$('contactError').hidden=false;$('contactError').textContent='이미 등록된 이메일 주소입니다.';return}
  $('contactError').hidden=true;
- const next=editingContactId?contacts.map(c=>c.id===editingContactId?{...c,name,email,categories:assigned}:c):[...contacts,{id:crypto.randomUUID(),name,email,categories:assigned}];
- await put('contacts',next);contacts=next;
- const wasEdit=!!editingContactId;editingContactId=null;
- $('contactName').value='';$('contactEmail').value='';$('addContact').textContent='주소록에 추가';$('cancelContactEdit').hidden=true;
- $('contactCategoryPicker').open=false;renderCategoryPicker();renderContacts();showSavedCheck();
- setStatus(wasEdit?'✓ 주소록 수정 완료':'✓ 주소록에 저장했습니다.');
+ const previous=editingContactId?contacts.find(c=>c.id===editingContactId):null;
+ renderCategoryPicker(previous?categoryNamesFor(previous).filter(c=>c!=='미분류'):[]);
+ $('contactCategoryDialog').showModal();
+}
+async function confirmContactCategories(){
+ const button=$('confirmContactCategory');button.disabled=true;
+ try{
+  const name=$('contactName').value.trim(),email=cleanEmail($('contactEmail').value),assigned=chosenCategoryNames();
+  if(!validEmail(email)||contacts.some(c=>c.email===email&&c.id!==editingContactId))throw Error('이메일 주소를 확인하세요.');
+  const updated=editingContactId?contacts.map(c=>c.id===editingContactId?{...c,name,email,categories:assigned}:c):[...contacts,{id:crypto.randomUUID(),name,email,categories:assigned}];
+  await put('contacts',updated);contacts=updated;
+  const wasEdit=!!editingContactId;editingContactId=null;
+  $('contactCategoryDialog').close();
+  $('contactName').value='';$('contactEmail').value='';$('addContact').textContent='주소록에 추가';$('cancelContactEdit').hidden=true;
+  renderContacts();showSavedCheck();setStatus(wasEdit?'✓ 주소록 수정 완료':'✓ 주소록에 저장했습니다.');
+ }finally{button.disabled=false}
 }
 function editContact(id){
  const contact=contacts.find(c=>c.id===id);if(!contact)return;
  editingContactId=id;
  $('contactName').value=contact.name||'';$('contactEmail').value=contact.email;
  $('addContact').textContent='수정 내용 저장';$('cancelContactEdit').hidden=false;
- renderCategoryPicker(categoryNamesFor(contact).filter(c=>c!=='미분류'));
- $('contactCategoryPicker').open=true;$('contactError').hidden=true;
+ $('contactError').hidden=true;
  $('contactName').scrollIntoView({behavior:'smooth',block:'center'});
 }
 function cancelContactEdit(){
  editingContactId=null;$('contactName').value='';$('contactEmail').value='';
  $('addContact').textContent='주소록에 추가';$('cancelContactEdit').hidden=true;
- $('contactCategoryPicker').open=false;renderCategoryPicker();$('contactError').hidden=true;
+ $('contactError').hidden=true;
 }
 async function deleteContacts(){
  if(!selectedContacts.size){setStatus('삭제할 주소를 먼저 체크하세요.',true);return}
@@ -348,6 +356,8 @@ for(const id of ['to','subject','body'])$(id).addEventListener('input',()=>{
  composerDebounce=setTimeout(()=>saveComposer().catch(e=>setStatus('자동 저장 실패: '+e.message,true)),350);
 });
 bind('addContact',addContact);
+bind('confirmContactCategory',confirmContactCategories);
+bind('cancelContactCategory',()=>$('contactCategoryDialog').close());
 bind('cancelContactEdit',cancelContactEdit);
 bind('addCategory',addCategory);
 bind('toggleCategories',async()=>{const all=[...categories,'미분류'].filter(c=>c!=='미분류'||contacts.some(x=>categoryNamesFor(x).includes('미분류')));const shouldOpen=!all.every(c=>openCategories.has(c));openCategories=new Set(shouldOpen?all:[]);renderContacts()});
