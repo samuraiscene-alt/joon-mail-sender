@@ -77,7 +77,9 @@ function selectedRecipients(saved){
  return [...new Set(validateRecipients(saved.to))];
 }
 function showFiles(files){
- $('attachments').textContent=files?.length?files.map(f=>`${f.name} (${((f.size||0)/1024/1024).toFixed(2)} MB)`).join(' · '):'저장된 첨부 없음';
+ const count=files?.length||0;
+ $('attachments').textContent=count?files.map(f=>`${f.name} (${((f.size||0)/1024/1024).toFixed(2)} MB)`).join(' · '):'저장된 첨부 없음';
+ $('attachmentCount').textContent='첨부 '+count+'개';
 }
 async function packFiles(files){
  const packed=[];
