@@ -2,3 +2,16 @@
 
 /* v0.2 address book */
 .contactsList{display:grid;gap:8px;margin-top:12px}.contactRow{display:flex;gap:8px;align-items:center;justify-content:space-between;border:1px solid #e7e9eb;border-radius:11px;padding:9px}.contactLabel{display:flex;align-items:center;gap:10px;min-width:0;flex:1;cursor:pointer}.contactLabel input{width:20px;height:20px;flex-shrink:0;accent-color:#e5a600}.contactLabel span{display:flex;flex-direction:column;gap:3px;min-width:0}.contactLabel small{overflow-wrap:anywhere}.contactRow button{padding:9px 12px;flex-shrink:0}#contactCount{font-weight:650}
+
+/* v0.2.2 accordion layout */
+.accordion{margin-top:14px;border:1px solid #e2e5e9;border-radius:14px;overflow:hidden;background:#fff}
+.accordion>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 14px;cursor:pointer;list-style:none;font-size:16px;font-weight:750;min-height:52px;user-select:none}
+.accordion>summary::-webkit-details-marker{display:none}
+.accordion>summary::after{content:'⌄';font-size:23px;line-height:1;color:#68717c;margin-left:auto;transition:transform .18s ease}
+.accordion[open]>summary::after{transform:rotate(180deg)}
+.accordionBody{padding:0 14px 16px;border-top:1px solid #eef0f2}
+.nestedAccordion{margin-top:16px;background:#fafbfc}
+.summaryCounter{font-size:12px;color:#6a7079;font-weight:600;white-space:nowrap;margin-left:auto}
+#gmailSettings{margin-top:12px}
+#gmailSettings>.accordion{margin-top:0}
+#historyAccordion{margin-top:18px}
