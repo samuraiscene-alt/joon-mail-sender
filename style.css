@@ -150,3 +150,9 @@ details.accordion > summary.tabActive::after{color:#145cc7}
 @keyframes letterFly{0%,62%{transform:translate(0,0) rotate(0) scale(1);opacity:1}67%{transform:translate(5px,-4px) rotate(-5deg) scale(1.04);opacity:1}90%{transform:translate(80px,-48px) rotate(-14deg) scale(.7);opacity:1}100%{transform:translate(105px,-66px) rotate(-18deg) scale(.55);opacity:0}}
 @media(max-width:370px){.sendProgressCard{padding:20px 15px}.sendProgressArt{width:215px}}
 @media(prefers-reduced-motion:reduce){.glassTurn,.sandTop,.sandBottom,.sandStream,.sendFlyingMail{animation:none}.sendProgressFill{transition:none}}
+
+/* v0.5.1: let quick sends visibly finish and softly transition to the V check */
+.sendProgressOverlay{opacity:1;transition:opacity .26s ease}
+.sendProgressOverlay.finishing{opacity:0}
+.sendProgressFill{transition:width .52s cubic-bezier(.22,.61,.36,1)}
+@media(prefers-reduced-motion:reduce){.sendProgressOverlay{transition:none}}
