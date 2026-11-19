@@ -71,3 +71,10 @@ dialog::backdrop{background:#0007}
 button.newMailButton,button.newMailButton.secondary{background:#2878f0;color:#fff;box-shadow:0 4px 12px rgba(40,120,240,.20)}
 button.newMailButton:active{background:#1765d6}
 button.newMailButton:focus-visible{outline:3px solid #9fc4ff;outline-offset:2px}
+
+/* v0.3.6: section headings on grey canvas above functional cards */
+.outsidePanelHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:24px 9px 9px;min-height:29px}
+.outsidePanelHeading h2{margin:0;color:#1c1c1e;font-size:19px;font-weight:800;letter-spacing:-.45px}
+.outsidePanelHeading .softStatus{flex-shrink:0}
+.outsidePanelHeading .subtleLabel{flex-shrink:0}
+.panel.detachedPanel{margin-top:0}
