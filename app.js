@@ -85,7 +85,7 @@ function renderContacts(){
   if(details.open)anyOpen=true;
   details.addEventListener('toggle',()=>{if(details.open)openCategories.add(category);else openCategories.delete(category);updateCategoryToggleLabel()});
   const summary=document.createElement('summary');
-  const title=document.createElement('span');title.className='categoryGroupTitle';title.textContent='▱ '+category;
+  const title=document.createElement('span');title.className='categoryGroupTitle';title.textContent=category;
   const count=document.createElement('span');count.className='summaryCounter';count.textContent=groupContacts.length+'명';
   summary.append(title,count);details.append(summary);
   const body=document.createElement('div');body.className='accordionBody';
@@ -349,6 +349,20 @@ async function exportBackup(){
 }
 async function restoreBackup(file){if(!confirm('현재 저장된 메일과 기록을 백업 파일로 교체할까요?'))return;const data=JSON.parse(await file.text());if(data.format!=='joon-mail-v1'||!data.message||!Array.isArray(data.history))throw Error('지원되지 않는 백업 파일입니다.');const m=data.message;if(m.files)m.files=m.files.map(f=>{if(typeof f.base64!=='string')throw Error('백업 파일 첨부 데이터가 없습니다.');return {name:String(f.name||'attachment'),type:String(f.type||'application/octet-stream'),size:Number(f.size)||Math.floor(f.base64.length*3/4),lastModified:Number(f.lastModified)||Date.now(),base64:f.base64}});await put('message',m);await put('history',data.history);if(Array.isArray(data.contacts)){const safe=data.contacts.filter(c=>c&&typeof c.email==='string'&&validEmail(c.email)).map(c=>({id:String(c.id||crypto.randomUUID()),name:String(c.name||''),email:cleanEmail(c.email),categories:Array.isArray(c.categories)?c.categories.filter(x=>typeof x==='string'):(typeof c.category==='string'?[c.category]:[])}));await put('contacts',safe)}if(Array.isArray(data.categories)){const normalized=[...new Set(data.categories.filter(c=>typeof c==='string'&&c.trim()).map(c=>c.trim()))];await put('categories',normalized)}else{await put('categories',[...DEFAULT_CATEGORIES])}await load();setStatus('✓ 백업 복원 완료')}
 function bind(id,fn){$(id).addEventListener('click',async()=>{try{await fn()}catch(e){setStatus(e.message||String(e),true)}})}
+// Only the most recently tapped, currently open accordion tab is highlighted.
+document.addEventListener('click',event=>{
+ const summary=event.target.closest('summary');
+ if(!summary||!summary.parentElement?.matches('details.accordion'))return;
+ const wasOpen=summary.parentElement.open;
+ document.querySelectorAll('details.accordion > summary.tabActive').forEach(el=>el.classList.remove('tabActive'));
+ if(!wasOpen)summary.classList.add('tabActive');
+});
+document.addEventListener('toggle',event=>{
+ const details=event.target;
+ if(details.matches?.('details.accordion')&&!details.open){
+  details.querySelector(':scope > summary')?.classList.remove('tabActive');
+ }
+},true);
 let composerDebounce;
 for(const id of ['to','subject','body'])$(id).addEventListener('input',()=>{
  $('autosaveStatus').textContent='자동 저장 중...';
