@@ -66,3 +66,8 @@ dialog{border:0;border-radius:22px;padding:22px;max-width:calc(100vw - 32px);wid
 dialog::backdrop{background:#0007}
 #confirmInfo{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;font-size:14px}
 @media(max-width:370px){h1{font-size:22px}.modeGrid{gap:7px}.choice{padding:10px 7px}.choice b{font-size:12px}.contactRow{padding:9px;gap:7px}}
+
+/* v0.3.4: enabled new-mail action, distinct from neutral controls */
+button.newMailButton,button.newMailButton.secondary{background:#2878f0;color:#fff;box-shadow:0 4px 12px rgba(40,120,240,.20)}
+button.newMailButton:active{background:#1765d6}
+button.newMailButton:focus-visible{outline:3px solid #9fc4ff;outline-offset:2px}
