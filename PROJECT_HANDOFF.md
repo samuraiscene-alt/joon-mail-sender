@@ -55,6 +55,12 @@
 - index.html에 핵심 UI 스타일을 인라인 추가하고 app.js/style.css 쿼리를 v0.3.1로 변경. SW CACHE 갱신.
 - 기존 아이콘, IndexedDB, 이메일 발송 로직은 변경하지 않음. 실기기에서 최신 CSS 반영 확인 필요.
 
+## v0.3.3 아코디언 변경 (2026-11-19)
+- 저장된 메일과 백업 패널 전체를 backupAccordion(details)으로 감싸 기본 접힌 상태로 표시.
+- 펼치면 백업·복원 버튼 및 중첩된 기기 내 발송 기록 아코디언 표시.
+- 첨부파일 선택도 attachmentAccordion(details)으로 접혀 있고 제목에서 첨부 건수 표시.
+- HTML, SW JS/CSS 버전 v0.3.3으로 동기화. IndexedDB 및 Gmail 엔진 불변.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
