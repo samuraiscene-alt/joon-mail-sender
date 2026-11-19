@@ -22,7 +22,7 @@ async function saveComposer({newFiles=null,showCheck=false}={}){
   });
 }
 function validEmail(v){return /^[^\s@,<>\r\n]+@[^\s@,<>\r\n]+\.[^\s@,<>\r\n]+$/.test(v)}
-function showContactCount(){$('contactCount').textContent='저장 '+contacts.length+'명 · 선택 '+selectedContacts.size+'명 (선택 시 직접 입력한 받는 사람 대신 사용)'}
+function showContactCount(){$('contactCount').textContent='저장 '+contacts.length+'명 · 선택 '+selectedContacts.size+'명 (선택 시 직접 입력한 받는 사람 대신 사용)';$('contactSummary').textContent=selectedContacts.size+'명 선택'}
 function renderContacts(){
  const list=$('contactsList');list.replaceChildren();
  if(!contacts.length){const p=document.createElement('p');p.className='muted';p.textContent='저장된 주소가 없습니다.';list.append(p)}
