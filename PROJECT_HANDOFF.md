@@ -71,6 +71,15 @@
 - 기능 영역 section은 detachedPanel 스타일만 부여. DOM ID, 기존 업무 로직, 입력 필드 데이터는 불변.
 - SW cache와 HTML 참조 쿼리 v0.3.6. 아이폰에서 확인 필요.
 
+## v0.4.0 카테고리별 주소록 (2026-11-19)
+- 카테고리 기본값 회사/친구/쇼핑/거래처. IndexedDB('joon-mail-v1')의 data store에 'categories' 키를 추가 (DB 스키마 변경 없음).
+- 기존 contacts는 그대로 유지; 런타임에서 category 또는 categories를 해석하고 분류 없으면 미분류. 각 연락처는 categories 문자열 배열을 가질 수 있음.
+- 메일 주소 목록함에서 카테고리 체크 후 저장 및 수정. '주소록 다중 선택' 내부에 카테고리별 접기/펼치기와 그룹 전체 선택/해제, 기존 전체 선택/해제/삭제 유지.
+- 같은 이메일을 여러 그룹에 넣어도 selectedContacts Set과 selectedRecipients에서 중복 제거. 직접 입력 주소는 선택된 주소록이 없을 때만 사용.
+- 카테고리 이름 수정/삭제해도 연락처 자체는 유지. 제거된 그룹에만 속했다면 미분류로 표시.
+- 전체 JSON 백업/복원에 categories 추가, 기존 백업에서 categories 누락 시 기본값 적용.
+- GitHub 코드 반영 v0.4.0. Safari/홈화면/직접 링크 기능 검증은 아직 필요. 기존 192/512 노란 봉투 아이콘 유지.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
