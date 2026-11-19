@@ -37,6 +37,11 @@
 - 앱 아이콘, OAuth 설정, IndexedDB 자료, Gmail API 발송 로직은 그대로 유지.
 - GitHub 코드 반영 후 iPhone Safari·홈 화면·직접 링크 세 환경에서 수동 점검 필요.
 
+## v0.2.3 캐시 동기화 (2026-11-19)
+- 주소록 내부 선택 2명과 아코디언 요약 0명 불일치 보고.
+- 최신 app.js는 이미 contactSummary와 contactCount를 함께 업데이트하므로 과거 app.js가 새 HTML과 같이 로딩된 혼합 캐시 가능성. 원인 가설이며 실기기 검증 전.
+- index.html에 app.js?v=0.2.3, style.css?v=0.2.3 명시. sw.js 캐시 v0.2.3으로 변경. 데이터 유지.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
