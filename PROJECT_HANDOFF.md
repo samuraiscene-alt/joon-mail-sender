@@ -86,6 +86,12 @@
 - 취소 시 입력값 유지, 저장하지 않음. 카테고리 복수 선택/미분류 저장, 모든 기존 데이터 보존.
 - v0.4.1 PWA/쿼리 캐시 동기화. iPhone Safari/홈앱 검증 필요.
 
+## v0.5.0 2D 메일 전송 진행 애니메이션
+- 발송 확정 후 sendProgressOverlay를 열고 SVG+CSS의 작은 2D 모래시계/큰 편지 발송 루프를 표시.
+- Gmail 개별 발송 success 응답 시에만 updateSendProgress(done,recipients.length)로 진행 막대 업데이트. 초안 생성도 동일 진행 화면 사용하되 초안 완료를 실제 발송 성공이라 표시하지 않음.
+- 전송 종료 후 오버레이 닫음; 전원 성공 시 기존 중앙 원형 V 체크 표시. 실패 시 기존 결과 상태 문구 유지.
+- IndexedDB, 기존 첨부/주소록/카테고리, OAuth 클라이언트 및 아이콘 불변. CSS/JS v0.5.0 + SW 캐시 정렬. 아이폰 실기기 테스트 필요.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
