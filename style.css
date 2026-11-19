@@ -146,7 +146,7 @@ details.accordion > summary.tabActive::after{color:#145cc7}
 @keyframes sandDraining{0%{transform:scaleY(1);opacity:1}61%{transform:scaleY(.02);opacity:.5}65%,100%{transform:scaleY(1);opacity:1}}
 @keyframes sandFilling{0%{transform:scaleY(.03)}61%{transform:scaleY(1)}65%,100%{transform:scaleY(.03)}}
 @keyframes sandStreamBlink{0%,61%{opacity:1}65%,100%{opacity:0}}
-@keyframes hourglassCycle{0%,64%{transform:rotate(0)}85%,100%{transform:rotate(180deg)}}
+@keyframes hourglassCycle{0%,64%{transform:rotate(0)}82%{transform:rotate(180deg)}100%{transform:rotate(360deg)}}
 @keyframes letterFly{0%,62%{transform:translate(0,0) rotate(0) scale(1);opacity:1}67%{transform:translate(5px,-4px) rotate(-5deg) scale(1.04);opacity:1}90%{transform:translate(80px,-48px) rotate(-14deg) scale(.7);opacity:1}100%{transform:translate(105px,-66px) rotate(-18deg) scale(.55);opacity:0}}
 @media(max-width:370px){.sendProgressCard{padding:20px 15px}.sendProgressArt{width:215px}}
 @media(prefers-reduced-motion:reduce){.glassTurn,.sandTop,.sandBottom,.sandStream,.sendFlyingMail{animation:none}.sendProgressFill{transition:none}}
