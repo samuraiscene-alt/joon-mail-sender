@@ -13,7 +13,7 @@ function composerData(){return {to:$('to').value.trim(),subject:$('subject').val
 async function saveComposer({newFiles=null,showCheck=false}={}){
   return queueSave(async()=>{
     const old=await get('message')||{files:[]};
-    const files=newFiles??old.files??[];
+    const files=newFiles?await packFiles(newFiles):(old.files??[]);
     if(files.reduce((n,f)=>n+(f.size||0),0)>10*1024*1024)throw Error('첨부파일 총 용량은 10MB 이내여야 합니다.');
     await put('message',{...composerData(),files});
     showFiles(files);
@@ -74,7 +74,26 @@ function selectedRecipients(saved){
  }
  return [...new Set(validateRecipients(saved.to))];
 }
-function showFiles(files){$('attachments').textContent=files?.length?files.map(f=>`${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`).join(' · '):'저장된 첨부 없음'}
+function showFiles(files){
+ $('attachments').textContent=files?.length?files.map(f=>`${f.name} (${((f.size||0)/1024/1024).toFixed(2)} MB)`).join(' · '):'저장된 첨부 없음';
+}
+async function packFiles(files){
+ const packed=[];
+ for(const f of files){
+  try{
+   const bytes=new Uint8Array(await f.arrayBuffer());
+   packed.push({name:f.name,type:f.type||'application/octet-stream',lastModified:f.lastModified||Date.now(),size:bytes.length,base64:bytesToBase64(bytes)});
+  }catch(e){throw Error('첨부파일을 읽을 수 없습니다. 파일을 다시 선택해 주세요. ('+(e.message||e)+')')}
+ }
+ return packed;
+}
+function attachmentBase64(f){
+ if(typeof f.base64==='string'){
+  if(f.size>0&&!f.base64.length)throw Error('첨부 데이터가 비어 있습니다. 파일을 다시 선택해 주세요.');
+  return f.base64;
+ }
+ throw Error('이전 방식으로 저장된 첨부파일입니다. 파일을 다시 선택해 저장하면 안전한 형식으로 변환됩니다.');
+}
 async function load(){try{const saved=await get('message')||{};$('to').value=saved.to||'';$('subject').value=saved.subject||'';$('body').value=saved.body||'';showFiles(saved.files||[]);$('clientId').value=localStorage.getItem('joon_client_id')||'';await renderHistory();await loadContacts()}catch(e){setStatus('저장소를 열 수 없습니다: '+e.message,true)}}
 async function save(){const selected=[...$('files').files];await saveComposer({newFiles:selected.length?selected:null,showCheck:true});$('files').value='';setStatus('✓ 저장 완료 (첨부 포함)')}
 async function connect(){const clientId=$('clientId').value.trim();if(!clientId.endsWith('.apps.googleusercontent.com'))throw Error('Google OAuth 웹 클라이언트 ID를 먼저 설정하세요.');if(!window.google?.accounts?.oauth2)throw Error('Google 인증 스크립트를 불러오지 못했습니다. Safari에서 인터넷 연결을 확인하세요.');tokenClient=google.accounts.oauth2.initTokenClient({client_id:clientId,scope:SCOPES,callback:response=>{if(response.error){$('authStatus').textContent='연결 실패: '+response.error;return}accessToken=response.access_token;$('authStatus').textContent='✓ Gmail 권한 연결 완료 (현재 세션)';setStatus('Gmail 연결 완료')}});tokenClient.requestAccessToken({prompt:accessToken?'':'consent'});}
@@ -85,7 +104,7 @@ function fold64(str){return str.match(/.{1,76}/g)?.join('\r\n')||''}
 function cleanEmail(s){return s.trim().toLowerCase()}
 function validateRecipients(to){const recipients=to.split(',').map(cleanEmail).filter(Boolean);if(!recipients.length||recipients.length>30||recipients.some(x=>!(/^[^\s@,<>\r\n]+@[^\s@,<>\r\n]+\.[^\s@,<>\r\n]+$/.test(x))))throw Error('받는 사람 이메일 주소를 확인하세요 (최대 30명).');return recipients}
 function sanitizeFilename(name){return name.replace(/[\r\n"\\]/g,'_').slice(0,150)}
-async function mime(saved){const recipients=validateRecipients(saved.to);if(!saved.subject.trim())throw Error('제목을 입력하세요.');const boundary='joonmail_'+crypto.randomUUID().replace(/-/g,'');const lines=[`To: ${recipients.join(', ')}`,`Subject: ${encodeHeader(saved.subject.replace(/[\r\n]/g,' '))}`,'MIME-Version: 1.0',`Content-Type: multipart/mixed; boundary="${boundary}"`,'',`--${boundary}`,'Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: base64','',fold64(bytesToBase64(new TextEncoder().encode(saved.body||'')))];for(const f of (saved.files||[])){const buf=new Uint8Array(await f.arrayBuffer());lines.push(`--${boundary}`,`Content-Type: ${/^[\w.+-]+\/[\w.+-]+$/.test(f.type)?f.type:'application/octet-stream'}`,'Content-Transfer-Encoding: base64',`Content-Disposition: attachment; filename="${sanitizeFilename(f.name)}"`,'',fold64(bytesToBase64(buf)))}lines.push(`--${boundary}--`,'');return base64url(new TextEncoder().encode(lines.join('\r\n')))}
+async function mime(saved){const recipients=validateRecipients(saved.to);if(!saved.subject.trim())throw Error('제목을 입력하세요.');const boundary='joonmail_'+crypto.randomUUID().replace(/-/g,'');const lines=[`To: ${recipients.join(', ')}`,`Subject: ${encodeHeader(saved.subject.replace(/[\r\n]/g,' '))}`,'MIME-Version: 1.0',`Content-Type: multipart/mixed; boundary="${boundary}"`,'',`--${boundary}`,'Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: base64','',fold64(bytesToBase64(new TextEncoder().encode(saved.body||'')))];for(const f of (saved.files||[])){const fileBase64=attachmentBase64(f);lines.push(`--${boundary}`,`Content-Type: ${/^[\w.+-]+\/[\w.+-]+$/.test(f.type)?f.type:'application/octet-stream'}`,'Content-Transfer-Encoding: base64',`Content-Disposition: attachment; filename="${sanitizeFilename(f.name)}"`,'',fold64(fileBase64))}lines.push(`--${boundary}--`,'');return base64url(new TextEncoder().encode(lines.join('\r\n')))}
 async function gmailCall(path,payload){const res=await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await res.json().catch(()=>({}));if(!res.ok)throw Error(`Gmail 오류 ${res.status}: ${data.error?.message||'권한 또는 네트워크 확인'}`);return data}
 async function record(mode,saved,result){const history=await get('history')||[];history.unshift({at:new Date().toISOString(),mode,to:saved.to,subject:saved.subject,id:result.id||''});await put('history',history.slice(0,100));await renderHistory()}
 async function renderHistory(){const list=$('history');list.replaceChildren();let history=await get('history')||[];if(!history.length){let li=document.createElement('li');li.textContent='기록 없음';list.append(li)}for(let h of history){let li=document.createElement('li');li.textContent=`${new Date(h.at).toLocaleString('ko-KR')} · ${h.mode==='send'?'전송':'초안'} · ${h.to} · ${h.subject}`;list.append(li)}}
@@ -102,6 +121,8 @@ async function prepare(){
   const recipients=selectedRecipients(saved);
   if(!recipients.length||recipients.length>30)throw Error('수신자는 1~30명까지 선택할 수 있습니다.');
   const mode=document.querySelector('input[name=mode]:checked').value;
+  // Build and validate MIME before confirmation; if a legacy iOS file reference is gone, block the entire batch.
+  // The encoded data is reused for each recipient, changing only the To header in the per-recipient MIME.
   const size=(saved.files||[]).reduce((n,f)=>n+f.size,0);
   $('confirmTitle').textContent=mode==='send'?'개별 메일을 실제 발송할까요?':'Gmail에 개별 초안을 만들까요?';
   $('confirmInfo').textContent='수신자 '+recipients.length+'명 (각자 주소만 표시)\n'+recipients.join('\n')+'\n제목: '+saved.subject+'\n첨부: '+(saved.files||[]).length+'개 / '+(size/1048576).toFixed(2)+'MB\n\n'+(mode==='send'?'확인을 누르면 각 수신자에게 개별 발송됩니다.':'확인을 누르면 각 수신자별 Gmail 초안이 생성됩니다. 실제 발송은 Gmail에서 직접 해야 합니다.');
@@ -125,15 +146,39 @@ async function prepare(){
         }
       }
       const verb=mode==='send'?'전송':'초안 생성';
-      setStatus('✓ '+verb+' 성공 '+done+'명 / 요청 '+recipients.length+'명'+(failures.length?' · 실패 '+failures.length+'명: '+failures.join('; '):'')+(mode==='draft'?' · Gmail 임시보관함에서 직접 발송하세요.':' · Gmail 보낸편지함에서 확인하세요.'),!!failures.length);
+      const statusText=verb+' 성공 '+done+'명 / 요청 '+recipients.length+'명'+(failures.length?' · 실패 '+failures.length+'명: '+failures.join('; '):'')+(mode==='draft'&&done?' · Gmail 임시보관함에서 직접 발송하세요.':'');
+      setStatus((done?'✓ ':'⚠ ')+statusText,!!failures.length);
       if(mode==='draft'&&done){const link=document.createElement('a');link.href='https://mail.google.com/mail/u/0/#drafts';link.target='_blank';link.rel='noopener';link.textContent='Gmail 임시보관함 열기';$('status').append(' ',link)}
     }finally{busy=false;$('submit').disabled=false}
   };
+  // Validate all attachments once before showing the final send button.
+  if((saved.files||[]).length){
+   try{await mime({...saved,to:recipients[0]})}
+   catch(e){throw Error('첨부파일 확인 실패: '+(e.message||e)+'. 원본 파일을 다시 선택해 주세요.')}
+  }
   dialog.showModal();
  }catch(e){setStatus(e.message||String(e),true);$('submit').disabled=false}
 }
-async function exportBackup(){let obj={format:'joon-mail-v1',message:await get('message')||{},history:await get('history')||[],contacts:await get('contacts')||[]};if(obj.message.files?.length)obj.message.files=await Promise.all(obj.message.files.map(async f=>({name:f.name,type:f.type,lastModified:f.lastModified,base64:bytesToBase64(new Uint8Array(await f.arrayBuffer()))})));const b=new Blob([JSON.stringify(obj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='JOON_Mail_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),60000);setStatus('백업 파일 다운로드를 요청했습니다. 파일 앱에서 저장 위치를 확인하세요.')}
-async function restoreBackup(file){if(!confirm('현재 저장된 메일과 기록을 백업 파일로 교체할까요?'))return;const data=JSON.parse(await file.text());if(data.format!=='joon-mail-v1'||!data.message||!Array.isArray(data.history))throw Error('지원되지 않는 백업 파일입니다.');const m=data.message;if(m.files)m.files=m.files.map(f=>{const binary=atob(f.base64),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new File([bytes],f.name,{type:f.type,lastModified:f.lastModified})});await put('message',m);await put('history',data.history);if(Array.isArray(data.contacts)){const safe=data.contacts.filter(c=>c&&typeof c.email==='string'&&validEmail(c.email)).map(c=>({id:String(c.id||crypto.randomUUID()),name:String(c.name||''),email:cleanEmail(c.email)}));await put('contacts',safe)}await load();setStatus('✓ 백업 복원 완료')}
+async function exportBackup(){
+ await saving;
+ const obj={format:'joon-mail-v1',message:await get('message')||{},history:await get('history')||[],contacts:await get('contacts')||[]};
+ if(obj.message.files?.length){
+  const normalized=[];
+  for(const f of obj.message.files){
+   if(typeof f.base64==='string')normalized.push({...f});
+   else {
+    const packed=await packFiles([f]);
+    normalized.push(packed[0]);
+   }
+  }
+  obj.message.files=normalized;
+ }
+ const b=new Blob([JSON.stringify(obj)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='JOON_Mail_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+ setStatus('백업 파일 다운로드를 요청했습니다. 파일 앱에서 저장 위치를 확인하세요.');
+}
+async function restoreBackup(file){if(!confirm('현재 저장된 메일과 기록을 백업 파일로 교체할까요?'))return;const data=JSON.parse(await file.text());if(data.format!=='joon-mail-v1'||!data.message||!Array.isArray(data.history))throw Error('지원되지 않는 백업 파일입니다.');const m=data.message;if(m.files)m.files=m.files.map(f=>{if(typeof f.base64!=='string')throw Error('백업 파일 첨부 데이터가 없습니다.');return {name:String(f.name||'attachment'),type:String(f.type||'application/octet-stream'),size:Number(f.size)||Math.floor(f.base64.length*3/4),lastModified:Number(f.lastModified)||Date.now(),base64:f.base64}});await put('message',m);await put('history',data.history);if(Array.isArray(data.contacts)){const safe=data.contacts.filter(c=>c&&typeof c.email==='string'&&validEmail(c.email)).map(c=>({id:String(c.id||crypto.randomUUID()),name:String(c.name||''),email:cleanEmail(c.email)}));await put('contacts',safe)}await load();setStatus('✓ 백업 복원 완료')}
 function bind(id,fn){$(id).addEventListener('click',async()=>{try{await fn()}catch(e){setStatus(e.message||String(e),true)}})}
 let composerDebounce;
 for(const id of ['to','subject','body'])$(id).addEventListener('input',()=>{
