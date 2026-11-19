@@ -42,6 +42,14 @@
 - 최신 app.js는 이미 contactSummary와 contactCount를 함께 업데이트하므로 과거 app.js가 새 HTML과 같이 로딩된 혼합 캐시 가능성. 원인 가설이며 실기기 검증 전.
 - index.html에 app.js?v=0.2.3, style.css?v=0.2.3 명시. sw.js 캐시 v0.2.3으로 변경. 데이터 유지.
 
+## v0.3.0 Apple 스타일 UI 및 발송 기록 관리 (2026-11-19)
+- 기존 노란 봉투 아이콘(icon-192.png, icon-512.png) 변경 금지. iPhone apple-touch-icon, manifest.webmanifest에서 참조. 홈 화면 아이콘 갱신은 iOS 자체 캐시의 영향을 받음.
+- UI: 둥근 흰색 카드, 연한 회색 배경, 노란 주요 버튼, 가로형 발송 방식, 주소록 2줄 정렬(첫 줄 체크+형광 이름+수정, 둘째 줄 이메일).
+- 기록: IndexedDB history 최대 1000건; 날짜별 그룹, 전송/초안/실패 표시, 개별·다중·전체 삭제. Gmail의 실제 메시지는 삭제하지 않음.
+- 주소록 입력 오류는 contactError 영역에 표시. 상태 메시지가 발송 결과와 혼동되지 않도록 분리.
+- js/css?v=0.3.0, service worker cache=joon-mail-v0.3.0. 기존 IndexedDB 이름/구조 및 OAuth 설정 불변.
+- 실기기에서는 iPhone Safari/홈화면/직접 링크, 기존 첨부파일 보존, 주소록 선택, 전송·초안·기록 삭제를 검사해야 함.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
