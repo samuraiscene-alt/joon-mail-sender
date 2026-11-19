@@ -14,10 +14,14 @@
 - 새 버전 배포 시 앱 파일 전체 검사, CHANGELOG 및 캐시 식별자 변경, Safari/홈앱 테스트 3채널 확인.
 - 기기 데이터는 버전 교체 시 유지; schema migration 필요한 경우 백업 및 복구 테스트.
 
-## 현재 상태
-- v0.1: 로컬 PWA 전체 소스 및 사용자 PNG 아이콘 포함.
-- Gmail OAuth ID 미설정 / Google Cloud 미구성 / 저장소 미생성 / 실발송 미검증 / 외부 공개 OAuth 검증 미완료.
-- 1·2번 방식은 UI 및 API 요청 로직 구현. 테스트/프로덕션 승인 필요.
+## 현재 상태 (2026-11-19, v0.2)
+- 저장소: samuraiscene-alt/joon-mail-sender (public), GitHub Pages 배포.
+- Google Cloud 프로젝트 ID: joon-mail-sender. OAuth 웹 클라이언트의 JavaScript origin은 https://samuraiscene-alt.github.io 로 설정.
+- gmail.compose 권한, 테스트 사용자로 OAuth 인증 연결 성공. 직접 발송 및 첨부 포함 Gmail 초안 생성 실기기 테스트 성공 (v0.1).
+- v0.2 변경: 기기 내부 주소록 저장/선택/수정/삭제, 여러 수신자 개별 발송·개별 초안, 텍스트 자동 저장, 주소록 백업 추가. GitHub 코드 반영 완료, iPhone 실기기 재검증 필요.
+- 발송은 최대 30명/회로 제한. 선택 목록이 있으면 그 목록 우선, 없으면 직접 입력 수신자 사용. 개별 메일로 상대방 주소 비공개.
+- Gmail OAuth 앱은 테스트 상태. 지인에게 배포하려면 공개 앱 검증/보안 요구사항 별도 확인 필요.
+- 기존 저장소: IndexedDB('joon-mail-v1') data store에 message/history/contacts. 기존 데이터 유지. 클라이언트 ID는 localStorage 사용. 비밀번호/토큰은 GitHub에 커밋하지 않음.
 
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
