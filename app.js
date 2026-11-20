@@ -319,6 +319,21 @@ function updateSavedClientId(){
  $('copyClientId').disabled=!saved;
  $('pasteSavedClientId').disabled=!saved;
 }
+function saveClientIdFromLowerField(){
+ const value=$('savedClientId').value.trim();
+ if(!/^\d+-[a-z0-9-]+\.apps\.googleusercontent\.com$/i.test(value)){
+  $('clientIdCopyStatus').textContent='올바른 Google OAuth 웹 클라이언트 ID를 입력하세요.';
+  throw Error('클라이언트 ID 형식을 확인하세요.');
+ }
+ const previous=localStorage.getItem('joon_client_id')||'';
+ localStorage.setItem('joon_client_id',value);
+ $('savedClientId').value=value;
+ $('clientId').value=value;
+ updateSavedClientId();
+ if(previous!==value)clearGmailAccess();
+ $('clientIdCopyStatus').textContent='✓ ID가 저장되고 Gmail 설정 입력칸에도 적용됐습니다.';
+ showSavedCheck();
+}
 async function copySavedClientId(){
  const saved=localStorage.getItem('joon_client_id')||'';
  if(!saved)throw Error('먼저 클라이언트 ID를 저장하세요.');
@@ -649,6 +664,7 @@ $('moveCategorySearch').addEventListener('input',renderMoveCategories);
 bind('cancelMoveContact',()=>$('moveContactDialog').close());
 bind('confirmMoveContact',confirmContactMove);
 $('moveContactDialog').addEventListener('close',()=>{moveContactId=null;moveTargetCategory=null});
+bind('saveClientId',saveClientIdFromLowerField);
 bind('copyClientId',copySavedClientId);
 bind('pasteSavedClientId',pasteSavedClientId);
 bind('resumePending',resumePendingBatch);
