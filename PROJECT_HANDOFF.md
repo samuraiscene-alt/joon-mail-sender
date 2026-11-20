@@ -115,6 +115,12 @@
 - 백업 파일은 iPhone Files/클라우드에 수동 보관해야 함. 자동 원격백업은 없음. iPhone 실제 재검증 필요.
 - CSS/JS/HTML/SW v0.5.3.
 
+## v0.5.4 주소록 양방향 스와이프 기능 (2026-11-20)
+- app.js contactRow()에서 카드 앞면을 좌/우 스와이프: 왼쪽 -74px 삭제, 오른쪽 +126px 수정·이동. 터치 세로 스크롤 우선 고려; 기존 수정은 editContact(id).
+- 삭제는 deleteSingleContact(id) -> confirm -> IndexedDB contacts 저장 -> 목록 재렌더.
+- 이동은 moveContactDialog와 moveCategorySearch + moveCategoryList에서 검색/선택 후 confirmContactMove(). 이름·이메일·ID 유지, categories는 [선택 카테고리]로 단일 변경하거나 미분류는 []. 기존 복수 카테고리 소속은 이동 시 모두 교체됨.
+- 기존 데이터와 아이콘 불변, HTML/JS/CSS/SW v0.5.4. 실제 iPhone 터치·세로 스크롤·복원 테스트 필요.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
