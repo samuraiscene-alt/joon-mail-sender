@@ -169,7 +169,8 @@ details.accordion > summary.tabActive::after{color:#145cc7}
 .contactSwipeShell{position:relative;overflow:hidden;border-radius:16px;isolation:isolate;background:#eef1f5;min-width:0}
 .contactSwipeShell .contactSwipeFront{position:relative;z-index:1;margin:0;background:#fff;border-radius:16px;min-height:70px;touch-action:pan-y;user-select:none;-webkit-user-select:none;will-change:transform}
 .contactSwipeShell .contactSwipeFront .contactLabel,.contactSwipeShell .contactSwipeFront input{user-select:auto;-webkit-user-select:auto}
-.contactSwipeActions{position:absolute;inset-block:0;display:flex;align-items:stretch;z-index:0}
+.contactSwipeActions{position:absolute;inset-block:0;display:flex;align-items:stretch;z-index:0;visibility:hidden;pointer-events:none}
+.contactSwipeShell.swipeOpen .contactSwipeActions{visibility:visible;pointer-events:auto}
 .leftSwipeActions{left:0;width:126px}
 .rightSwipeActions{right:0;width:74px}
 .contactSwipeActions button{height:100%;min-height:70px;margin:0;border-radius:0;flex:1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;padding:8px 4px}
