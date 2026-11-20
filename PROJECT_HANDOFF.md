@@ -107,6 +107,14 @@
 - refresh token을 브라우저 저장소에 저장하지 않음. 완전 무인 자동 재인증 보장하지 않음.
 - HTML/CSS/JS/SW v0.5.2, 기존 아이콘/IndexedDB 및 백업 데이터는 변경하지 않음. iOS 실제 Google OAuth 팝업 테스트 필요.
 
+## v0.5.3 주소록 백업 및 선택 초기화 (2026-11-20)
+- 기존 전체 JSON 백업에 주소록/카테고리가 포함되어 있었고, 주소록 전용 exportContacts/restoreContacts 버튼을 backupAccordion에 추가.
+- 전용 포맷 joon-mail-contacts-v1; 기존 전체 백업(joon-mail-v1)의 contacts/categories도 전용 복원에서 받아들임.
+- 주소록만 복원하면 기존 주소는 보존, 이메일 기준 중복 무시, 새로운 주소와 카테고리 병합. 여러 개 키를 한 IndexedDB 트랜잭션에 기록.
+- addressSelection / categoryBookAccordion 닫으면 selectedContacts 비우고 체크 UI 다시 그림. 개별 categoryGroup 닫을 때 해당 그룹의 선택 해제. 사용자가 메일 발송을 위해 체크를 유지하려면 선택창을 열어둬야 함.
+- 백업 파일은 iPhone Files/클라우드에 수동 보관해야 함. 자동 원격백업은 없음. iPhone 실제 재검증 필요.
+- CSS/JS/HTML/SW v0.5.3.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
