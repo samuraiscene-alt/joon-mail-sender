@@ -156,3 +156,7 @@ details.accordion > summary.tabActive::after{color:#145cc7}
 .sendProgressOverlay.finishing{opacity:0}
 .sendProgressFill{transition:width .52s cubic-bezier(.22,.61,.36,1)}
 @media(prefers-reduced-motion:reduce){.sendProgressOverlay{transition:none}}
+
+/* v0.5.2: visible action for resuming only unprocessed Gmail recipients */
+.resumePendingButton{display:block;width:100%;margin-top:12px;background:#2878f0!important;color:white!important;box-shadow:0 4px 12px #2878f033}
+.resumePendingButton[hidden]{display:none!important}
