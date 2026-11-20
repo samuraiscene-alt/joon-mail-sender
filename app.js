@@ -154,7 +154,9 @@ function contactRow(contact){
    if(Math.abs(dx)<12)return;
    drag.horizontal=true;
   }
-  setOffset(Math.max(-74,Math.min(126,drag.start+dx)));
+  const nextOffset=Math.max(-74,Math.min(126,drag.start+dx));
+  shell.classList.toggle('swipeOpen',nextOffset!==0);
+  setOffset(nextOffset);
  });
  const finish=e=>{
   if(!drag||drag.id!==e.pointerId)return;
