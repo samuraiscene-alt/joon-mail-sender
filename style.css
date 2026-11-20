@@ -164,3 +164,23 @@ details.accordion > summary.tabActive::after{color:#145cc7}
 /* v0.5.3: address-book backup actions match existing backup buttons */
 #backupPanel .actions{align-items:center}
 #backupPanel .actions .fileBtn{display:inline-flex;align-items:center;justify-content:center;margin:0;font-size:14px}
+
+/* v0.5.4: two-direction swipe actions for individually saved contact cards */
+.contactSwipeShell{position:relative;overflow:hidden;border-radius:16px;isolation:isolate;background:#eef1f5;min-width:0}
+.contactSwipeShell .contactSwipeFront{position:relative;z-index:1;margin:0;background:#fff;border-radius:16px;min-height:70px;touch-action:pan-y;user-select:none;-webkit-user-select:none;will-change:transform}
+.contactSwipeShell .contactSwipeFront .contactLabel,.contactSwipeShell .contactSwipeFront input{user-select:auto;-webkit-user-select:auto}
+.contactSwipeActions{position:absolute;inset-block:0;display:flex;align-items:stretch;z-index:0}
+.leftSwipeActions{left:0;width:126px}
+.rightSwipeActions{right:0;width:74px}
+.contactSwipeActions button{height:100%;min-height:70px;margin:0;border-radius:0;flex:1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;padding:8px 4px}
+.contactSwipeEdit{color:#30343b;background:#e7e8eb}
+.contactSwipeMove{color:#155ed3;background:#dceafe}
+.contactSwipeDelete{color:white;background:#d62f35}
+.moveContactDialog{width:min(430px,calc(100vw - 32px))}
+.moveContactDialog h2{margin:0 0 8px}
+.moveContactDialog input[type=search]{margin-top:12px}
+.moveCategoryList{max-height:min(43vh,360px);overflow-y:auto;overscroll-behavior:contain;display:grid;gap:6px;margin:14px 0;padding:2px}
+.moveCategoryOption.secondary{display:flex;align-items:center;justify-content:space-between;text-align:left;width:100%;min-height:47px;padding:11px 13px;background:#f6f7f9;color:#292d32}
+.moveCategoryOption.chosen{background:#e7f0ff;color:#185cbe;box-shadow:inset 0 0 0 1.5px #5c93e3}
+.moveDialogActions{justify-content:flex-end}
+.moveDialogActions button:disabled{opacity:.4}
