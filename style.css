@@ -160,3 +160,7 @@ details.accordion > summary.tabActive::after{color:#145cc7}
 /* v0.5.2: visible action for resuming only unprocessed Gmail recipients */
 .resumePendingButton{display:block;width:100%;margin-top:12px;background:#2878f0!important;color:white!important;box-shadow:0 4px 12px #2878f033}
 .resumePendingButton[hidden]{display:none!important}
+
+/* v0.5.3: address-book backup actions match existing backup buttons */
+#backupPanel .actions{align-items:center}
+#backupPanel .actions .fileBtn{display:inline-flex;align-items:center;justify-content:center;margin:0;font-size:14px}
