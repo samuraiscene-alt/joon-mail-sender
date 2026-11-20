@@ -509,11 +509,13 @@ document.addEventListener('toggle',event=>{
  }
 },true);
 // Closing the address-book picker clears the current recipient selection, not the saved contacts.
-$('addressSelection').addEventListener('toggle',()=>{
- if($('addressSelection').open)return;
- if(!selectedContacts.size)return;
- selectedContacts.clear();renderContacts();
-});
+for(const panelId of ['addressSelection','categoryBookAccordion']){
+ $(panelId).addEventListener('toggle',()=>{
+  if($(panelId).open||!selectedContacts.size)return;
+  selectedContacts.clear();
+  renderContacts();
+ });
+}
 let composerDebounce;
 for(const id of ['to','subject','body'])$(id).addEventListener('input',()=>{
  $('autosaveStatus').textContent='자동 저장 중...';
