@@ -341,11 +341,12 @@ function batchStatus(batch,paused=false){
  const verb=batch.mode==='send'?'전송':'초안 생성';
  const done=batch.completed.size,remaining=batch.recipients.length-batch.nextIndex;
  const detail=batch.failures.length?' · 실패 '+batch.failures.length+'명: '+batch.failures.join('; '):'';
+ const skipped=remaining>0?' · 미처리 '+remaining+'명':'';
  if(paused){
   setStatus('Gmail 인증 만료로 일시 정지 · '+verb+' 성공 '+done+'명 / 전체 '+batch.recipients.length+'명 · 남은 대상 '+remaining+'명'+detail,true);
   $('resumePending').hidden=false;
  }else{
-  setStatus((done?'✓ ':'⚠ ')+verb+' 성공 '+done+'명 / 요청 '+batch.recipients.length+'명'+detail+(batch.mode==='draft'&&done?' · Gmail 임시보관함에서 직접 발송하세요.':''),
+  setStatus((done?'✓ ':'⚠ ')+verb+' 성공 '+done+'명 / 요청 '+batch.recipients.length+'명'+detail+skipped+(batch.mode==='draft'&&done?' · Gmail 임시보관함에서 직접 발송하세요.':''),
    batch.failures.length>0||done===0);
   $('resumePending').hidden=true;
   if(batch.mode==='draft'&&done){const link=document.createElement('a');link.href='https://mail.google.com/mail/u/0/#drafts';link.target='_blank';link.rel='noopener';link.textContent='Gmail 임시보관함 열기';$('status').append(' ',link)}
@@ -420,7 +421,7 @@ async function prepare(){
   const size=(saved.files||[]).reduce((n,f)=>n+(f.size||0),0);
   const batch={saved,recipients,mode,nextIndex:0,completed:new Set(),failures:[]};
   $('confirmTitle').textContent=mode==='send'?'개별 메일을 실제 발송할까요?':'Gmail에 개별 초안을 만들까요?';
-  $('confirmInfo').textContent='수신자 '+recipients.length+'명 (각자 주소만 표시)\\n'+recipients.join('\\n')+'\\n제목: '+saved.subject+'\\n첨부: '+(saved.files||[]).length+'개 / '+(size/1048576).toFixed(2)+'MB\\n\\n'+(mode==='send'?'확인을 누르면 각 수신자에게 개별 발송됩니다.':'확인을 누르면 각 수신자별 Gmail 초안이 생성됩니다. 실제 발송은 Gmail에서 직접 해야 합니다.');
+  $('confirmInfo').textContent='수신자 '+recipients.length+'명 (각자 주소만 표시)\n'+recipients.join('\n')+'\n제목: '+saved.subject+'\n첨부: '+(saved.files||[]).length+'개 / '+(size/1048576).toFixed(2)+'MB\n\n'+(mode==='send'?'확인을 누르면 각 수신자에게 개별 발송됩니다.':'확인을 누르면 각 수신자별 Gmail 초안이 생성됩니다. 실제 발송은 Gmail에서 직접 해야 합니다.');
   const dialog=$('confirmDialog');
   dialog.onclose=()=>{
    if(dialog.returnValue!=='ok'){$('submit').disabled=false;return}
