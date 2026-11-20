@@ -98,6 +98,15 @@
 - 전송 버튼 비활성/열린 확인창 가드를 통해 중복 발송 확인창 진입 방지.
 - v0.5.1 JS/CSS/SW 버전 동기화; iPhone 테스트 필요.
 
+## v0.5.2 OAuth 사전 점검 / 남은 대상 전송 재개 (2026-11-20)
+- app.js requestGmailAccess()에서 이전에 연결된 유효한 메모리 토큰은 재사용. 최초 연결/만료/앱 재실행 등에서는 사용자가 '전송 진행' 또는 'Gmail 연결'을 직접 누른 동작 안에서 Google OAuth 팝업 요청.
+- Google이 반환하는 expires_in으로 토큰 만료 시각 관리. 전송 중 401이면 토큰을 비우고 중지. 403은 인증 만료로 자동 취급하지 않음.
+- 진행 배치는 pendingBatch(메모리)로 보존: saved 메일/첨부 스냅샷, mode, recipients, nextIndex, completed Set, failures. 재연결 후 resumePending으로 다음 미처리 수신자부터 재개.
+- Gmail API 성공이 확인되면 로컬 기록 저장 성공 여부와 관계없이 completed에 포함하여 자동 중복 전송을 방지.
+- pendingBatch는 페이지 reload/프로세스 종료 때 사라짐. 나중에 영속 재개가 필요하면 중복 발송 및 API 응답 불확실성에 대한 별도 설계 필수.
+- refresh token을 브라우저 저장소에 저장하지 않음. 완전 무인 자동 재인증 보장하지 않음.
+- HTML/CSS/JS/SW v0.5.2, 기존 아이콘/IndexedDB 및 백업 데이터는 변경하지 않음. iOS 실제 Google OAuth 팝업 테스트 필요.
+
 ## 추후 권장 단계
 1. 본인 GitHub 저장소 생성 및 배포 연결.
 2. Google Cloud Gmail API + OAuth 클라이언트 세팅.
