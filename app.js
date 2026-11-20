@@ -313,7 +313,31 @@ function attachmentBase64(f){
  }
  throw Error('이전 방식으로 저장된 첨부파일입니다. 파일을 다시 선택해 저장하면 안전한 형식으로 변환됩니다.');
 }
-async function load(){try{const saved=await get('message')||{};$('to').value=saved.to||'';$('subject').value=saved.subject||'';$('body').value=saved.body||'';showFiles(saved.files||[]);$('clientId').value=localStorage.getItem('joon_client_id')||'';await renderHistory();await loadContacts()}catch(e){setStatus('저장소를 열 수 없습니다: '+e.message,true)}}
+function updateSavedClientId(){
+ const saved=localStorage.getItem('joon_client_id')||'';
+ $('savedClientId').value=saved;
+ $('copyClientId').disabled=!saved;
+ $('pasteSavedClientId').disabled=!saved;
+}
+async function copySavedClientId(){
+ const saved=localStorage.getItem('joon_client_id')||'';
+ if(!saved)throw Error('먼저 클라이언트 ID를 저장하세요.');
+ try{
+  await navigator.clipboard.writeText(saved);
+  $('clientIdCopyStatus').textContent='✓ ID를 복사했습니다. 원하는 곳에 붙여넣으세요.';
+ }catch(e){
+  const field=$('savedClientId');
+  field.focus();field.select();
+  $('clientIdCopyStatus').textContent='자동 복사가 제한되어 ID를 선택했습니다. 복사 메뉴를 눌러주세요.';
+ }
+}
+function pasteSavedClientId(){
+ const saved=localStorage.getItem('joon_client_id')||'';
+ if(!saved)throw Error('저장된 클라이언트 ID가 없습니다.');
+ $('clientId').value=saved;
+ $('clientIdCopyStatus').textContent='✓ 저장된 ID를 입력칸에 불러왔습니다.';
+}
+async function load(){try{const saved=await get('message')||{};$('to').value=saved.to||'';$('subject').value=saved.subject||'';$('body').value=saved.body||'';showFiles(saved.files||[]);$('clientId').value=localStorage.getItem('joon_client_id')||'';updateSavedClientId();await renderHistory();await loadContacts()}catch(e){setStatus('저장소를 열 수 없습니다: '+e.message,true)}}
 async function save(){const selected=[...$('files').files];await saveComposer({newFiles:selected.length?selected:null,showCheck:true});$('files').value='';setStatus('✓ 저장 완료 (첨부 포함)')}
 function validToken(){return !!accessToken&&Date.now()<tokenExpiresAt-60000}
 function clearGmailAccess(){accessToken='';tokenExpiresAt=0;$('authStatus').textContent='Gmail 재연결 필요'}
@@ -625,6 +649,8 @@ $('moveCategorySearch').addEventListener('input',renderMoveCategories);
 bind('cancelMoveContact',()=>$('moveContactDialog').close());
 bind('confirmMoveContact',confirmContactMove);
 $('moveContactDialog').addEventListener('close',()=>{moveContactId=null;moveTargetCategory=null});
+bind('copyClientId',copySavedClientId);
+bind('pasteSavedClientId',pasteSavedClientId);
 bind('resumePending',resumePendingBatch);
 bind('addContact',addContact);
 bind('confirmContactCategory',confirmContactCategories);
@@ -639,4 +665,4 @@ bind('selectHistory',async()=>{historySelection=!historySelection;selectedHistor
 bind('deleteSelectedHistory',async()=>deleteHistoryKeys([...selectedHistory]));
 bind('clearHistory',async()=>{const history=await get('history')||[];if(!history.length)return;if(!confirm('발송 기록 '+history.length+'건을 모두 삭제할까요? Gmail의 실제 메일은 그대로 남습니다.'))return;await put('history',[]);selectedHistory.clear();await renderHistory();showSavedCheck()});
 $('contactEmail').addEventListener('input',()=>{$('contactError').hidden=true});
-bind('saveConfig',()=>{const c=$('clientId').value.trim();if(!c.endsWith('.apps.googleusercontent.com'))throw Error('올바른 Google 웹 클라이언트 ID를 입력하세요.');localStorage.setItem('joon_client_id',c);clearGmailAccess();$('authStatus').textContent='설정 저장 완료 · Gmail 연결을 누르세요';setStatus('✓ 설정 저장 완료')});bind('connect',connect);bind('clear',async()=>{if(!confirm('새 메일을 작성할까요? 현재 작성 내용과 첨부파일을 비웁니다. 주소록과 발송 기록은 유지됩니다.'))return;clearTimeout(composerDebounce);await saving;await put('message',{to:'',subject:'',body:'',files:[]});$('to').value='';$('subject').value='';$('body').value='';$('files').value='';showFiles([]);selectedContacts.clear();renderContacts();$('autosaveStatus').textContent='새 메일 작성 준비됨';showSavedCheck();setStatus('새 메일 작성 준비 완료')});bind('submit',prepare);bind('export',exportBackup);bind('exportContacts',exportContactBackup);$('restoreContacts').addEventListener('change',async e=>{try{if(e.target.files[0])await restoreContactBackup(e.target.files[0])}catch(err){setStatus('주소록 복원 오류: '+(err.message||String(err)),true)}finally{e.target.value=''}});$('restore').addEventListener('change',async e=>{try{if(e.target.files[0])await restoreBackup(e.target.files[0])}catch(err){setStatus(err.message,true)}e.target.value=''});$('files').addEventListener('change',async()=>{const selected=[...$('files').files];if(!selected.length)return;$('submit').disabled=true;setStatus('첨부파일 자동 저장 중...');try{await save();setStatus('✓ 첨부파일 자동 저장 완료 (내용 포함)')}catch(e){setStatus('첨부파일 자동 저장 실패: '+(e.message||String(e)),true)}finally{$('submit').disabled=false}});load();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+bind('saveConfig',()=>{const c=$('clientId').value.trim();if(!c.endsWith('.apps.googleusercontent.com'))throw Error('올바른 Google 웹 클라이언트 ID를 입력하세요.');localStorage.setItem('joon_client_id',c);updateSavedClientId();$('clientIdCopyStatus').textContent='✓ 클라이언트 ID가 이 기기에 저장되었습니다.';clearGmailAccess();$('authStatus').textContent='설정 저장 완료 · Gmail 연결을 누르세요';setStatus('✓ 설정 저장 완료')});bind('connect',connect);bind('clear',async()=>{if(!confirm('새 메일을 작성할까요? 현재 작성 내용과 첨부파일을 비웁니다. 주소록과 발송 기록은 유지됩니다.'))return;clearTimeout(composerDebounce);await saving;await put('message',{to:'',subject:'',body:'',files:[]});$('to').value='';$('subject').value='';$('body').value='';$('files').value='';showFiles([]);selectedContacts.clear();renderContacts();$('autosaveStatus').textContent='새 메일 작성 준비됨';showSavedCheck();setStatus('새 메일 작성 준비 완료')});bind('submit',prepare);bind('export',exportBackup);bind('exportContacts',exportContactBackup);$('restoreContacts').addEventListener('change',async e=>{try{if(e.target.files[0])await restoreContactBackup(e.target.files[0])}catch(err){setStatus('주소록 복원 오류: '+(err.message||String(err)),true)}finally{e.target.value=''}});$('restore').addEventListener('change',async e=>{try{if(e.target.files[0])await restoreBackup(e.target.files[0])}catch(err){setStatus(err.message,true)}e.target.value=''});$('files').addEventListener('change',async()=>{const selected=[...$('files').files];if(!selected.length)return;$('submit').disabled=true;setStatus('첨부파일 자동 저장 중...');try{await save();setStatus('✓ 첨부파일 자동 저장 완료 (내용 포함)')}catch(e){setStatus('첨부파일 자동 저장 실패: '+(e.message||String(e)),true)}finally{$('submit').disabled=false}});load();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
