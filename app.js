@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const SCOPES='https://www.googleapis.com/auth/gmail.compose';
-let accessToken='',tokenClient=null,dbPromise;
+let accessToken='',tokenClient=null,dbPromise,tokenExpiresAt=0,pendingBatch=null,authRequestActive=false;
 let contacts=[], selectedContacts=new Set(), saving=Promise.resolve(),busy=false;
 let historySelection=false,selectedHistory=new Set();
 const DEFAULT_CATEGORIES=['회사','친구','쇼핑','거래처'];
@@ -216,7 +216,40 @@ function attachmentBase64(f){
 }
 async function load(){try{const saved=await get('message')||{};$('to').value=saved.to||'';$('subject').value=saved.subject||'';$('body').value=saved.body||'';showFiles(saved.files||[]);$('clientId').value=localStorage.getItem('joon_client_id')||'';await renderHistory();await loadContacts()}catch(e){setStatus('저장소를 열 수 없습니다: '+e.message,true)}}
 async function save(){const selected=[...$('files').files];await saveComposer({newFiles:selected.length?selected:null,showCheck:true});$('files').value='';setStatus('✓ 저장 완료 (첨부 포함)')}
-async function connect(){const clientId=$('clientId').value.trim();if(!clientId.endsWith('.apps.googleusercontent.com'))throw Error('Google OAuth 웹 클라이언트 ID를 먼저 설정하세요.');if(!window.google?.accounts?.oauth2)throw Error('Google 인증 스크립트를 불러오지 못했습니다. Safari에서 인터넷 연결을 확인하세요.');tokenClient=google.accounts.oauth2.initTokenClient({client_id:clientId,scope:SCOPES,callback:response=>{if(response.error){$('authStatus').textContent='연결 실패: '+response.error;return}accessToken=response.access_token;$('authStatus').textContent='✓ Gmail 권한 연결 완료 (현재 세션)';setStatus('Gmail 연결 완료')}});tokenClient.requestAccessToken({prompt:accessToken?'':'consent'});}
+function validToken(){return !!accessToken&&Date.now()<tokenExpiresAt-60000}
+function clearGmailAccess(){accessToken='';tokenExpiresAt=0;$('authStatus').textContent='Gmail 재연결 필요'}
+function requestGmailAccess(force=false){
+ if(!force&&validToken())return Promise.resolve(true);
+ if(authRequestActive)return Promise.reject(Error('Google 인증창이 이미 열려 있습니다.'));
+ const clientId=$('clientId').value.trim();
+ if(!clientId.endsWith('.apps.googleusercontent.com'))throw Error('Google OAuth 웹 클라이언트 ID를 먼저 설정하세요.');
+ if(!window.google?.accounts?.oauth2)throw Error('Google 인증 도구를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');
+ authRequestActive=true;
+ return new Promise((resolve,reject)=>{
+  let completed=false;
+  const finish=(error,response)=>{
+   if(completed)return;completed=true;authRequestActive=false;
+   if(error){clearGmailAccess();reject(error);return}
+   if(!response?.access_token){clearGmailAccess();reject(Error('Google 인증 토큰을 받지 못했습니다.'));return}
+   accessToken=response.access_token;
+   const lifetime=Number(response.expires_in);
+   tokenExpiresAt=Date.now()+(Number.isFinite(lifetime)&&lifetime>0?lifetime:3600)*1000;
+   $('authStatus').textContent='✓ Gmail 연결됨 · 필요할 때만 재연결';
+   resolve(true);
+  };
+  try{
+   tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:clientId,scope:SCOPES,
+    callback:response=>response?.error?finish(Error('Google 인증 실패: '+response.error)):finish(null,response),
+    error_callback:error=>finish(Error(error?.type==='popup_closed'?'Google 인증창을 닫았습니다.':'Google 인증창을 열 수 없습니다.'))
+   });
+   $('authStatus').textContent='Google 인증 확인 중...';
+   // This call must occur synchronously during an explicit click on mobile Safari.
+   tokenClient.requestAccessToken({prompt:''});
+  }catch(error){finish(error)}
+ });
+}
+async function connect(){await requestGmailAccess(true);setStatus('✓ Gmail 연결 완료')}
 function encodeHeader(str){return /[^\x20-\x7e]/.test(str)?'=?UTF-8?B?'+bytesToBase64(new TextEncoder().encode(str))+'?=':str}
 function bytesToBase64(bytes){let s='';for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(s)}
 function base64url(bytes){return bytesToBase64(bytes).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
@@ -225,7 +258,7 @@ function cleanEmail(s){return s.trim().toLowerCase()}
 function validateRecipients(to){const recipients=to.split(',').map(cleanEmail).filter(Boolean);if(!recipients.length||recipients.length>30||recipients.some(x=>!(/^[^\s@,<>\r\n]+@[^\s@,<>\r\n]+\.[^\s@,<>\r\n]+$/.test(x))))throw Error('받는 사람 이메일 주소를 확인하세요 (최대 30명).');return recipients}
 function sanitizeFilename(name){return name.replace(/[\r\n"\\]/g,'_').slice(0,150)}
 async function mime(saved){const recipients=validateRecipients(saved.to);if(!saved.subject.trim())throw Error('제목을 입력하세요.');const boundary='joonmail_'+crypto.randomUUID().replace(/-/g,'');const lines=[`To: ${recipients.join(', ')}`,`Subject: ${encodeHeader(saved.subject.replace(/[\r\n]/g,' '))}`,'MIME-Version: 1.0',`Content-Type: multipart/mixed; boundary="${boundary}"`,'',`--${boundary}`,'Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: base64','',fold64(bytesToBase64(new TextEncoder().encode(saved.body||'')))];for(const f of (saved.files||[])){const fileBase64=attachmentBase64(f);lines.push(`--${boundary}`,`Content-Type: ${/^[\w.+-]+\/[\w.+-]+$/.test(f.type)?f.type:'application/octet-stream'}`,'Content-Transfer-Encoding: base64',`Content-Disposition: attachment; filename="${sanitizeFilename(f.name)}"`,'',fold64(fileBase64))}lines.push(`--${boundary}--`,'');return base64url(new TextEncoder().encode(lines.join('\r\n')))}
-async function gmailCall(path,payload){const res=await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await res.json().catch(()=>({}));if(!res.ok)throw Error(`Gmail 오류 ${res.status}: ${data.error?.message||'권한 또는 네트워크 확인'}`);return data}
+async function gmailCall(path,payload){const res=await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await res.json().catch(()=>({}));if(res.status===401){clearGmailAccess();const error=Error('Gmail 인증이 만료되었습니다.');error.authExpired=true;throw error}if(!res.ok)throw Error(`Gmail 오류 ${res.status}: ${data.error?.message||'권한 또는 네트워크 확인'}`);return data}
 async function record(mode,saved,result){
  const history=await get('history')||[];
  history.unshift({key:crypto.randomUUID(),at:new Date().toISOString(),mode,to:saved.to,subject:saved.subject,id:result.id||'',state:'success'});
@@ -301,59 +334,99 @@ async function finishSendProgress(){
  overlay.hidden=true;
  overlay.classList.remove('finishing');
 }
+function showBatchProgress(batch){
+ updateSendProgress(batch.completed.size,batch.recipients.length);
+}
+function batchStatus(batch,paused=false){
+ const verb=batch.mode==='send'?'전송':'초안 생성';
+ const done=batch.completed.size,remaining=batch.recipients.length-batch.nextIndex;
+ const detail=batch.failures.length?' · 실패 '+batch.failures.length+'명: '+batch.failures.join('; '):'';
+ if(paused){
+  setStatus('Gmail 인증 만료로 일시 정지 · '+verb+' 성공 '+done+'명 / 전체 '+batch.recipients.length+'명 · 남은 대상 '+remaining+'명'+detail,true);
+  $('resumePending').hidden=false;
+ }else{
+  setStatus((done?'✓ ':'⚠ ')+verb+' 성공 '+done+'명 / 요청 '+batch.recipients.length+'명'+detail+(batch.mode==='draft'&&done?' · Gmail 임시보관함에서 직접 발송하세요.':''),
+   batch.failures.length>0||done===0);
+  $('resumePending').hidden=true;
+  if(batch.mode==='draft'&&done){const link=document.createElement('a');link.href='https://mail.google.com/mail/u/0/#drafts';link.target='_blank';link.rel='noopener';link.textContent='Gmail 임시보관함 열기';$('status').append(' ',link)}
+ }
+}
+async function runBatch(batch){
+ busy=true;$('submit').disabled=true;$('resumePending').hidden=true;
+ let paused=false,allSuccessful=false;
+ startSendProgress(batch.mode);
+ showBatchProgress(batch);
+ try{
+  while(batch.nextIndex<batch.recipients.length){
+   if(!validToken()){paused=true;clearGmailAccess();break}
+   const email=batch.recipients[batch.nextIndex];
+   setStatus((batch.mode==='send'?'개별 발송':'초안 생성')+' 중...');
+   let result;
+   try{
+    const raw=await mime({...batch.saved,to:email});
+    result=batch.mode==='send'?await gmailCall('messages/send',{raw}):await gmailCall('drafts',{message:{raw}});
+   }catch(e){
+    if(e.authExpired){paused=true;break}
+    batch.failures.push(email+' — '+(e.message||String(e)));
+    batch.nextIndex++;
+    await recordFailure(batch.mode,{...batch.saved,to:email},e.message||String(e));
+    if(/Gmail 오류 403/.test(String(e.message)))break;
+    continue;
+   }
+   // A successful Gmail API response is authoritative; local history errors must not cause re-send.
+   batch.completed.add(email);batch.nextIndex++;
+   showBatchProgress(batch);
+   try{await record(batch.mode,{...batch.saved,to:email},result)}catch(e){console.warn('메일은 전송되었지만 기기 기록 저장 실패',e)}
+  }
+  if(paused){pendingBatch=batch;batchStatus(batch,true)}
+  else{
+   pendingBatch=null;batchStatus(batch);
+   allSuccessful=batch.mode==='send'&&batch.completed.size===batch.recipients.length&&batch.failures.length===0;
+  }
+ }catch(e){
+  pendingBatch=batch;
+  setStatus('전송 처리 중 오류 · 작성 내용과 남은 대상 유지: '+(e.message||String(e)),true);
+  $('resumePending').hidden=false;
+ }finally{
+  try{await finishSendProgress();if(allSuccessful)showSavedCheck()}
+  finally{busy=false;$('submit').disabled=false}
+ }
+}
+async function resumePendingBatch(){
+ if(busy||!pendingBatch)return;
+ // Called directly in the user click path: Safari can open Google sign-in immediately.
+ await requestGmailAccess();
+ if(pendingBatch)await runBatch(pendingBatch);
+}
 async function prepare(){
  if(busy||$('submit').disabled||$('confirmDialog').open)return;
+ if(pendingBatch){setStatus('중단된 전송이 있습니다. 먼저 Gmail 재연결 후 남은 메일 계속을 누르세요.',true);return}
  $('submit').disabled=true;
- try {
+ try{
+  // OAuth popup is requested before any await, keeping the user's original click gesture.
+  const authorization=requestGmailAccess();
+  await authorization;
   await saving;
   await saveComposer();
   const saved=await get('message');
-  if(!saved)throw Error('작성 내용이 없습니다.');
-  if(!saved.subject.trim())throw Error('제목을 입력하세요.');
-  if(!accessToken)throw Error('먼저 Gmail 연결 버튼으로 권한을 승인하세요.');
+  if(!saved||!saved.subject.trim())throw Error('제목을 입력하세요.');
   const recipients=selectedRecipients(saved);
   if(!recipients.length||recipients.length>30)throw Error('수신자는 1~30명까지 선택할 수 있습니다.');
   const mode=document.querySelector('input[name=mode]:checked').value;
-  // Build and validate MIME before confirmation; if a legacy iOS file reference is gone, block the entire batch.
-  // The encoded data is reused for each recipient, changing only the To header in the per-recipient MIME.
-  const size=(saved.files||[]).reduce((n,f)=>n+f.size,0);
-  $('confirmTitle').textContent=mode==='send'?'개별 메일을 실제 발송할까요?':'Gmail에 개별 초안을 만들까요?';
-  $('confirmInfo').textContent='수신자 '+recipients.length+'명 (각자 주소만 표시)\n'+recipients.join('\n')+'\n제목: '+saved.subject+'\n첨부: '+(saved.files||[]).length+'개 / '+(size/1048576).toFixed(2)+'MB\n\n'+(mode==='send'?'확인을 누르면 각 수신자에게 개별 발송됩니다.':'확인을 누르면 각 수신자별 Gmail 초안이 생성됩니다. 실제 발송은 Gmail에서 직접 해야 합니다.');
-  const dialog=$('confirmDialog');
-  dialog.onclose=async()=>{
-    if(dialog.returnValue!=='ok'){$('submit').disabled=false;return}
-    busy=true;
-    let done=0;
-    const failures=[];
-    let fullSendSuccess=false;
-    startSendProgress(mode);
-    try{
-      for(const email of recipients){
-        setStatus((mode==='send'?'개별 발송':'초안 생성')+' 중: '+(done+failures.length+1)+' / '+recipients.length);
-        try{
-          const raw=await mime({...saved,to:email});
-          const result=mode==='send'?await gmailCall('messages/send',{raw}):await gmailCall('drafts',{message:{raw}});
-          await record(mode,{...saved,to:email},result);
-          done++;
-          updateSendProgress(done,recipients.length);
-        }catch(e){
-          failures.push(email+' — '+(e.message||String(e)));
-          await recordFailure(mode,{...saved,to:email},e.message||String(e));
-          if(/Gmail 오류 401|Gmail 오류 403/.test(String(e.message)))break;
-        }
-      }
-      const verb=mode==='send'?'전송':'초안 생성';
-      const statusText=verb+' 성공 '+done+'명 / 요청 '+recipients.length+'명'+(failures.length?' · 실패 '+failures.length+'명: '+failures.join('; '):'')+(mode==='draft'&&done?' · Gmail 임시보관함에서 직접 발송하세요.':'');
-      setStatus((done?'✓ ':'⚠ ')+statusText,!!failures.length);
-      fullSendSuccess=mode==='send'&&done===recipients.length&&failures.length===0;
-      if(mode==='draft'&&done){const link=document.createElement('a');link.href='https://mail.google.com/mail/u/0/#drafts';link.target='_blank';link.rel='noopener';link.textContent='Gmail 임시보관함 열기';$('status').append(' ',link)}
-    }catch(e){setStatus('전송 처리 오류: '+(e.message||String(e)),true)}finally{try{await finishSendProgress();if(fullSendSuccess)showSavedCheck()}finally{busy=false;$('submit').disabled=false}}
-  };
-  // Validate all attachments once before showing the final send button.
   if((saved.files||[]).length){
    try{await mime({...saved,to:recipients[0]})}
    catch(e){throw Error('첨부파일 확인 실패: '+(e.message||e)+'. 원본 파일을 다시 선택해 주세요.')}
   }
+  const size=(saved.files||[]).reduce((n,f)=>n+(f.size||0),0);
+  const batch={saved,recipients,mode,nextIndex:0,completed:new Set(),failures:[]};
+  $('confirmTitle').textContent=mode==='send'?'개별 메일을 실제 발송할까요?':'Gmail에 개별 초안을 만들까요?';
+  $('confirmInfo').textContent='수신자 '+recipients.length+'명 (각자 주소만 표시)\\n'+recipients.join('\\n')+'\\n제목: '+saved.subject+'\\n첨부: '+(saved.files||[]).length+'개 / '+(size/1048576).toFixed(2)+'MB\\n\\n'+(mode==='send'?'확인을 누르면 각 수신자에게 개별 발송됩니다.':'확인을 누르면 각 수신자별 Gmail 초안이 생성됩니다. 실제 발송은 Gmail에서 직접 해야 합니다.');
+  const dialog=$('confirmDialog');
+  dialog.onclose=()=>{
+   if(dialog.returnValue!=='ok'){$('submit').disabled=false;return}
+   if(busy)return;
+   runBatch(batch).catch(e=>{setStatus('전송 오류: '+(e.message||String(e)),true);$('submit').disabled=false;busy=false});
+  };
   dialog.showModal();
  }catch(e){setStatus(e.message||String(e),true);$('submit').disabled=false}
 }
@@ -398,6 +471,7 @@ for(const id of ['to','subject','body'])$(id).addEventListener('input',()=>{
  clearTimeout(composerDebounce);
  composerDebounce=setTimeout(()=>saveComposer().catch(e=>setStatus('자동 저장 실패: '+e.message,true)),350);
 });
+bind('resumePending',resumePendingBatch);
 bind('addContact',addContact);
 bind('confirmContactCategory',confirmContactCategories);
 bind('cancelContactCategory',()=>$('contactCategoryDialog').close());
@@ -411,4 +485,4 @@ bind('selectHistory',async()=>{historySelection=!historySelection;selectedHistor
 bind('deleteSelectedHistory',async()=>deleteHistoryKeys([...selectedHistory]));
 bind('clearHistory',async()=>{const history=await get('history')||[];if(!history.length)return;if(!confirm('발송 기록 '+history.length+'건을 모두 삭제할까요? Gmail의 실제 메일은 그대로 남습니다.'))return;await put('history',[]);selectedHistory.clear();await renderHistory();showSavedCheck()});
 $('contactEmail').addEventListener('input',()=>{$('contactError').hidden=true});
-bind('saveConfig',()=>{const c=$('clientId').value.trim();if(!c.endsWith('.apps.googleusercontent.com'))throw Error('올바른 Google 웹 클라이언트 ID를 입력하세요.');localStorage.setItem('joon_client_id',c);accessToken='';$('authStatus').textContent='설정 저장 완료 · Gmail 연결을 누르세요';setStatus('✓ 설정 저장 완료')});bind('connect',connect);bind('clear',async()=>{if(!confirm('새 메일을 작성할까요? 현재 작성 내용과 첨부파일을 비웁니다. 주소록과 발송 기록은 유지됩니다.'))return;clearTimeout(composerDebounce);await saving;await put('message',{to:'',subject:'',body:'',files:[]});$('to').value='';$('subject').value='';$('body').value='';$('files').value='';showFiles([]);selectedContacts.clear();renderContacts();$('autosaveStatus').textContent='새 메일 작성 준비됨';showSavedCheck();setStatus('새 메일 작성 준비 완료')});bind('submit',prepare);bind('export',exportBackup);$('restore').addEventListener('change',async e=>{try{if(e.target.files[0])await restoreBackup(e.target.files[0])}catch(err){setStatus(err.message,true)}e.target.value=''});$('files').addEventListener('change',async()=>{const selected=[...$('files').files];if(!selected.length)return;$('submit').disabled=true;setStatus('첨부파일 자동 저장 중...');try{await save();setStatus('✓ 첨부파일 자동 저장 완료 (내용 포함)')}catch(e){setStatus('첨부파일 자동 저장 실패: '+(e.message||String(e)),true)}finally{$('submit').disabled=false}});load();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+bind('saveConfig',()=>{const c=$('clientId').value.trim();if(!c.endsWith('.apps.googleusercontent.com'))throw Error('올바른 Google 웹 클라이언트 ID를 입력하세요.');localStorage.setItem('joon_client_id',c);clearGmailAccess();$('authStatus').textContent='설정 저장 완료 · Gmail 연결을 누르세요';setStatus('✓ 설정 저장 완료')});bind('connect',connect);bind('clear',async()=>{if(!confirm('새 메일을 작성할까요? 현재 작성 내용과 첨부파일을 비웁니다. 주소록과 발송 기록은 유지됩니다.'))return;clearTimeout(composerDebounce);await saving;await put('message',{to:'',subject:'',body:'',files:[]});$('to').value='';$('subject').value='';$('body').value='';$('files').value='';showFiles([]);selectedContacts.clear();renderContacts();$('autosaveStatus').textContent='새 메일 작성 준비됨';showSavedCheck();setStatus('새 메일 작성 준비 완료')});bind('submit',prepare);bind('export',exportBackup);$('restore').addEventListener('change',async e=>{try{if(e.target.files[0])await restoreBackup(e.target.files[0])}catch(err){setStatus(err.message,true)}e.target.value=''});$('files').addEventListener('change',async()=>{const selected=[...$('files').files];if(!selected.length)return;$('submit').disabled=true;setStatus('첨부파일 자동 저장 중...');try{await save();setStatus('✓ 첨부파일 자동 저장 완료 (내용 포함)')}catch(e){setStatus('첨부파일 자동 저장 실패: '+(e.message||String(e)),true)}finally{$('submit').disabled=false}});load();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
