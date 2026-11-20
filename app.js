@@ -63,8 +63,67 @@ function renderCategoryManager(){
   row.append(name,rename,remove);list.append(row);
  }
 }
+let moveContactId=null,moveTargetCategory=null;
+function openContactMove(id){
+ const contact=contacts.find(c=>c.id===id);if(!contact)return;
+ moveContactId=id;moveTargetCategory=null;
+ $('moveCategorySearch').value='';
+ $('moveContactDescription').textContent='‘'+(contact.name||contact.email)+'’을 이동할 회사를 선택하세요.';
+ renderMoveCategories();
+ $('moveContactDialog').showModal();
+}
+function renderMoveCategories(){
+ const list=$('moveCategoryList');list.replaceChildren();
+ const search=$('moveCategorySearch').value.trim().toLocaleLowerCase('ko');
+ const options=[...categories,'미분류'].filter(c=>c.toLocaleLowerCase('ko').includes(search));
+ for(const category of options){
+  const btn=document.createElement('button');btn.type='button';btn.className='secondary moveCategoryOption';
+  btn.setAttribute('role','radio');btn.setAttribute('aria-checked',String(moveTargetCategory===category));
+  if(moveTargetCategory===category)btn.classList.add('chosen');
+  const name=document.createElement('span');name.textContent=category;
+  const mark=document.createElement('span');mark.textContent=moveTargetCategory===category?'✓':'';
+  btn.append(name,mark);
+  btn.addEventListener('click',()=>{moveTargetCategory=category;renderMoveCategories()});
+  list.append(btn);
+ }
+ if(!options.length){const p=document.createElement('p');p.className='muted';p.textContent='일치하는 회사가 없습니다.';list.append(p)}
+ $('confirmMoveContact').disabled=!moveTargetCategory;
+}
+async function confirmContactMove(){
+ const contact=contacts.find(c=>c.id===moveContactId),target=moveTargetCategory;
+ if(!contact||!target||(!categories.includes(target)&&target!=='미분류'))return;
+ const button=$('confirmMoveContact');button.disabled=true;
+ try{
+  const updated=contacts.map(c=>c.id===contact.id?{...c,categories:target==='미분류'?[]:[target]}:c);
+  await put('contacts',updated);contacts=updated;
+  selectedContacts.delete(contact.id);
+  openCategories.add(target);
+  $('moveContactDialog').close();
+  moveContactId=null;moveTargetCategory=null;
+  renderContacts();showSavedCheck();showTemporaryStatus('✓ '+(contact.name||contact.email)+' 이동 완료');
+ }finally{button.disabled=false}
+}
+async function deleteSingleContact(id){
+ const contact=contacts.find(c=>c.id===id);if(!contact)return;
+ if(!confirm('‘'+(contact.name||contact.email)+'’ 주소를 삭제할까요?\\n이메일: '+contact.email))return;
+ const updated=contacts.filter(c=>c.id!==id);
+ await put('contacts',updated);contacts=updated;
+ selectedContacts.delete(id);
+ renderContacts();showSavedCheck();showTemporaryStatus('✓ 주소록에서 삭제했습니다.');
+}
 function contactRow(contact){
- const row=document.createElement('div');row.className='contactRow';
+ const shell=document.createElement('div');shell.className='contactSwipeShell';
+ const rightActions=document.createElement('div');rightActions.className='contactSwipeActions rightSwipeActions';
+ const remove=document.createElement('button');remove.type='button';remove.className='contactSwipeDelete';remove.textContent='삭제';
+ remove.addEventListener('click',()=>deleteSingleContact(contact.id).catch(e=>setStatus(e.message||String(e),true)));
+ rightActions.append(remove);
+ const leftActions=document.createElement('div');leftActions.className='contactSwipeActions leftSwipeActions';
+ const edit=document.createElement('button');edit.type='button';edit.className='contactSwipeEdit';edit.textContent='수정';
+ edit.addEventListener('click',()=>editContact(contact.id));
+ const move=document.createElement('button');move.type='button';move.className='contactSwipeMove';move.textContent='이동';
+ move.addEventListener('click',()=>openContactMove(contact.id));
+ leftActions.append(edit,move);
+ const row=document.createElement('div');row.className='contactRow contactSwipeFront';
  const label=document.createElement('label');label.className='contactLabel';
  const ck=document.createElement('input');ck.type='checkbox';ck.checked=selectedContacts.has(contact.id);
  ck.addEventListener('change',()=>{if(ck.checked)selectedContacts.add(contact.id);else selectedContacts.delete(contact.id);showContactCount();renderContacts()});
@@ -72,8 +131,46 @@ function contactRow(contact){
  const title=document.createElement('strong');title.className='markerName';title.textContent=contact.name||contact.email;
  const email=document.createElement('small');email.className='contactEmail';email.textContent=contact.email;
  info.append(title,email);label.append(ck,info);row.append(label);
- const edit=document.createElement('button');edit.className='secondary editBtn';edit.textContent='수정';
- edit.addEventListener('click',()=>editContact(contact.id));row.append(edit);return row;
+ shell.append(leftActions,rightActions,row);
+ const setOffset=x=>{row.style.transform='translate3d('+x+'px,0,0)'};
+ let current=0,drag=null,blockClick=false;
+ const snap=x=>{
+  current=x;
+  row.style.transition='transform .19s cubic-bezier(.2,.8,.3,1)';
+  setOffset(x);
+  shell.classList.toggle('swipeOpen',x!==0);
+ };
+ row.addEventListener('pointerdown',e=>{
+  if(e.button!==0&&e.pointerType==='mouse')return;
+  if(e.target.closest('button'))return;
+  drag={id:e.pointerId,x:e.clientX,y:e.clientY,start:current,horizontal:false,cancelled:false};
+  row.style.transition='none';
+ });
+ row.addEventListener('pointermove',e=>{
+  if(!drag||drag.id!==e.pointerId||drag.cancelled)return;
+  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(!drag.horizontal){
+   if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>12){drag.cancelled=true;return}
+   if(Math.abs(dx)<12)return;
+   drag.horizontal=true;
+  }
+  setOffset(Math.max(-74,Math.min(126,drag.start+dx)));
+ });
+ const finish=e=>{
+  if(!drag||drag.id!==e.pointerId)return;
+  const d=drag;drag=null;
+  if(d.horizontal&&!d.cancelled){
+   const shift=d.start+e.clientX-d.x;
+   snap(shift< -36?-74:shift>48?126:0);
+   blockClick=true;
+   setTimeout(()=>{blockClick=false},350);
+  }else{snap(current)}
+ };
+ row.addEventListener('pointerup',finish);
+ row.addEventListener('pointercancel',()=>{drag=null;snap(current)});
+ row.addEventListener('click',e=>{if(!blockClick)return;e.preventDefault();e.stopPropagation()},true);
+ shell.addEventListener('focusout',e=>{if(!shell.contains(e.relatedTarget))snap(0)});
+ return shell;
 }
 function renderContacts(){
  const list=$('contactsList');list.replaceChildren();
@@ -522,6 +619,10 @@ for(const id of ['to','subject','body'])$(id).addEventListener('input',()=>{
  clearTimeout(composerDebounce);
  composerDebounce=setTimeout(()=>saveComposer().catch(e=>setStatus('자동 저장 실패: '+e.message,true)),350);
 });
+$('moveCategorySearch').addEventListener('input',renderMoveCategories);
+bind('cancelMoveContact',()=>$('moveContactDialog').close());
+bind('confirmMoveContact',confirmContactMove);
+$('moveContactDialog').addEventListener('close',()=>{moveContactId=null;moveTargetCategory=null});
 bind('resumePending',resumePendingBatch);
 bind('addContact',addContact);
 bind('confirmContactCategory',confirmContactCategories);
