@@ -84,7 +84,7 @@ function renderContacts(){
   if(!groupContacts.length&&category==='미분류')continue;
   const details=document.createElement('details');details.className='accordion categoryGroup';details.open=openCategories.has(category);
   if(details.open)anyOpen=true;
-  details.addEventListener('toggle',()=>{if(details.open)openCategories.add(category);else openCategories.delete(category);updateCategoryToggleLabel()});
+  details.addEventListener('toggle',()=>{if(details.open){openCategories.add(category)}else{openCategories.delete(category);let changed=false;for(const contact of groupContacts){if(selectedContacts.delete(contact.id))changed=true}if(changed)queueMicrotask(()=>renderContacts())}updateCategoryToggleLabel()});
   const summary=document.createElement('summary');
   const title=document.createElement('span');title.className='categoryGroupTitle';title.textContent=category;
   const count=document.createElement('span');count.className='summaryCounter';count.textContent=groupContacts.length+'명';
@@ -450,6 +450,48 @@ async function exportBackup(){
  setTimeout(()=>URL.revokeObjectURL(a.href),60000);
  setStatus('백업 파일 다운로드를 요청했습니다. 파일 앱에서 저장 위치를 확인하세요.');
 }
+function downloadJsonBackup(data,filename){
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const link=document.createElement('a');
+ link.href=URL.createObjectURL(blob);
+ link.download=filename;
+ document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(link.href),60000);
+}
+async function exportContactBackup(){
+ const data={format:'joon-mail-contacts-v1',exportedAt:new Date().toISOString(),contacts:await get('contacts')||[],categories:await get('categories')||[...DEFAULT_CATEGORIES]};
+ downloadJsonBackup(data,'Multi_Mail_Contacts_'+new Date().toISOString().slice(0,10)+'.json');
+ showTemporaryStatus('주소록 백업 파일 다운로드를 요청했습니다. 파일 앱에 보관하세요.',4000);
+}
+async function restoreContactBackup(file){
+ const data=JSON.parse(await file.text());
+ if(!data||!['joon-mail-contacts-v1','joon-mail-v1'].includes(data.format)||!Array.isArray(data.contacts))throw Error('지원되지 않는 주소록 백업 파일입니다.');
+ if(!confirm('주소록 백업을 가져올까요? 기존 이메일은 유지하고 없는 이메일만 추가합니다.'))return;
+ const incoming=data.contacts.filter(c=>c&&typeof c.email==='string'&&validEmail(cleanEmail(c.email)));
+ const incomingCategories=Array.isArray(data.categories)?data.categories.filter(c=>typeof c==='string'&&c.trim()&&c.trim()!=='미분류').map(c=>c.trim()):[];
+ const existing=await get('contacts')||[];
+ const oldCategories=await get('categories')||[...DEFAULT_CATEGORIES];
+ const nextCategories=[...new Set([...oldCategories,...incomingCategories])];
+ const known=new Set(existing.map(c=>cleanEmail(c.email)));
+ const added=[];
+ for(const c of incoming){
+  const email=cleanEmail(c.email);
+  if(known.has(email))continue;
+  known.add(email);
+  const assigned=Array.isArray(c.categories)?c.categories:(c.category?[c.category]:[]);
+  added.push({id:crypto.randomUUID(),name:String(c.name||''),email,categories:[...new Set(assigned.filter(x=>typeof x==='string'&&nextCategories.includes(x)))]});
+ }
+ // Categories and contacts are saved together in one IndexedDB transaction to avoid partial restoration.
+ const database=await db();
+ await new Promise((resolve,reject)=>{
+  const tx=database.transaction('data','readwrite');
+  tx.objectStore('data').put(nextCategories,'categories');
+  tx.objectStore('data').put([...existing,...added],'contacts');
+  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('주소록 복원 실패'));
+ });
+ await loadContacts();showSavedCheck();
+ setStatus('✓ 주소록 복원 완료 · 새로 추가 '+added.length+'명 / 중복 유지 '+(incoming.length-added.length)+'명');
+}
 async function restoreBackup(file){if(!confirm('현재 저장된 메일과 기록을 백업 파일로 교체할까요?'))return;const data=JSON.parse(await file.text());if(data.format!=='joon-mail-v1'||!data.message||!Array.isArray(data.history))throw Error('지원되지 않는 백업 파일입니다.');const m=data.message;if(m.files)m.files=m.files.map(f=>{if(typeof f.base64!=='string')throw Error('백업 파일 첨부 데이터가 없습니다.');return {name:String(f.name||'attachment'),type:String(f.type||'application/octet-stream'),size:Number(f.size)||Math.floor(f.base64.length*3/4),lastModified:Number(f.lastModified)||Date.now(),base64:f.base64}});await put('message',m);await put('history',data.history);if(Array.isArray(data.contacts)){const safe=data.contacts.filter(c=>c&&typeof c.email==='string'&&validEmail(c.email)).map(c=>({id:String(c.id||crypto.randomUUID()),name:String(c.name||''),email:cleanEmail(c.email),categories:Array.isArray(c.categories)?c.categories.filter(x=>typeof x==='string'):(typeof c.category==='string'?[c.category]:[])}));await put('contacts',safe)}if(Array.isArray(data.categories)){const normalized=[...new Set(data.categories.filter(c=>typeof c==='string'&&c.trim()).map(c=>c.trim()))];await put('categories',normalized)}else{await put('categories',[...DEFAULT_CATEGORIES])}await load();setStatus('✓ 백업 복원 완료')}
 function bind(id,fn){$(id).addEventListener('click',async()=>{try{await fn()}catch(e){setStatus(e.message||String(e),true)}})}
 // Only the most recently tapped, currently open accordion tab is highlighted.
@@ -466,6 +508,12 @@ document.addEventListener('toggle',event=>{
   details.querySelector(':scope > summary')?.classList.remove('tabActive');
  }
 },true);
+// Closing the address-book picker clears the current recipient selection, not the saved contacts.
+$('addressSelection').addEventListener('toggle',()=>{
+ if($('addressSelection').open)return;
+ if(!selectedContacts.size)return;
+ selectedContacts.clear();renderContacts();
+});
 let composerDebounce;
 for(const id of ['to','subject','body'])$(id).addEventListener('input',()=>{
  $('autosaveStatus').textContent='자동 저장 중...';
@@ -486,4 +534,4 @@ bind('selectHistory',async()=>{historySelection=!historySelection;selectedHistor
 bind('deleteSelectedHistory',async()=>deleteHistoryKeys([...selectedHistory]));
 bind('clearHistory',async()=>{const history=await get('history')||[];if(!history.length)return;if(!confirm('발송 기록 '+history.length+'건을 모두 삭제할까요? Gmail의 실제 메일은 그대로 남습니다.'))return;await put('history',[]);selectedHistory.clear();await renderHistory();showSavedCheck()});
 $('contactEmail').addEventListener('input',()=>{$('contactError').hidden=true});
-bind('saveConfig',()=>{const c=$('clientId').value.trim();if(!c.endsWith('.apps.googleusercontent.com'))throw Error('올바른 Google 웹 클라이언트 ID를 입력하세요.');localStorage.setItem('joon_client_id',c);clearGmailAccess();$('authStatus').textContent='설정 저장 완료 · Gmail 연결을 누르세요';setStatus('✓ 설정 저장 완료')});bind('connect',connect);bind('clear',async()=>{if(!confirm('새 메일을 작성할까요? 현재 작성 내용과 첨부파일을 비웁니다. 주소록과 발송 기록은 유지됩니다.'))return;clearTimeout(composerDebounce);await saving;await put('message',{to:'',subject:'',body:'',files:[]});$('to').value='';$('subject').value='';$('body').value='';$('files').value='';showFiles([]);selectedContacts.clear();renderContacts();$('autosaveStatus').textContent='새 메일 작성 준비됨';showSavedCheck();setStatus('새 메일 작성 준비 완료')});bind('submit',prepare);bind('export',exportBackup);$('restore').addEventListener('change',async e=>{try{if(e.target.files[0])await restoreBackup(e.target.files[0])}catch(err){setStatus(err.message,true)}e.target.value=''});$('files').addEventListener('change',async()=>{const selected=[...$('files').files];if(!selected.length)return;$('submit').disabled=true;setStatus('첨부파일 자동 저장 중...');try{await save();setStatus('✓ 첨부파일 자동 저장 완료 (내용 포함)')}catch(e){setStatus('첨부파일 자동 저장 실패: '+(e.message||String(e)),true)}finally{$('submit').disabled=false}});load();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+bind('saveConfig',()=>{const c=$('clientId').value.trim();if(!c.endsWith('.apps.googleusercontent.com'))throw Error('올바른 Google 웹 클라이언트 ID를 입력하세요.');localStorage.setItem('joon_client_id',c);clearGmailAccess();$('authStatus').textContent='설정 저장 완료 · Gmail 연결을 누르세요';setStatus('✓ 설정 저장 완료')});bind('connect',connect);bind('clear',async()=>{if(!confirm('새 메일을 작성할까요? 현재 작성 내용과 첨부파일을 비웁니다. 주소록과 발송 기록은 유지됩니다.'))return;clearTimeout(composerDebounce);await saving;await put('message',{to:'',subject:'',body:'',files:[]});$('to').value='';$('subject').value='';$('body').value='';$('files').value='';showFiles([]);selectedContacts.clear();renderContacts();$('autosaveStatus').textContent='새 메일 작성 준비됨';showSavedCheck();setStatus('새 메일 작성 준비 완료')});bind('submit',prepare);bind('export',exportBackup);bind('exportContacts',exportContactBackup);$('restoreContacts').addEventListener('change',async e=>{try{if(e.target.files[0])await restoreContactBackup(e.target.files[0])}catch(err){setStatus('주소록 복원 오류: '+(err.message||String(err)),true)}finally{e.target.value=''}});$('restore').addEventListener('change',async e=>{try{if(e.target.files[0])await restoreBackup(e.target.files[0])}catch(err){setStatus(err.message,true)}e.target.value=''});$('files').addEventListener('change',async()=>{const selected=[...$('files').files];if(!selected.length)return;$('submit').disabled=true;setStatus('첨부파일 자동 저장 중...');try{await save();setStatus('✓ 첨부파일 자동 저장 완료 (내용 포함)')}catch(e){setStatus('첨부파일 자동 저장 실패: '+(e.message||String(e)),true)}finally{$('submit').disabled=false}});load();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
